@@ -289,7 +289,7 @@ Answer generation is deterministic by default and requires no LLM key:
 
 ```dotenv
 API_AGENT_LLM_PROVIDER="none"
-API_AGENT_LLM_MODEL="gemini-2.5-flash"
+API_AGENT_LLM_MODEL="gemini-3.5-flash"
 ```
 
 For a local Gemini demo, set `API_AGENT_LLM_PROVIDER="gemini"` and provide

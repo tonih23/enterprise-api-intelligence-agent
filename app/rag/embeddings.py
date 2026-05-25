@@ -6,6 +6,7 @@ import hashlib
 import math
 import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Protocol
 
 from app.config import EmbeddingBackend
@@ -26,10 +27,18 @@ class Embedder(Protocol):
 
 
 class SentenceTransformerEmbedder:
-    """Create semantic vectors with a lazily loaded sentence-transformers model."""
+    """Create semantic vectors from a Hub model ID or a local model directory."""
 
     def __init__(self, model_name: str, *, batch_size: int = 32) -> None:
-        self.model_name = model_name
+        local_path = Path(model_name).expanduser()
+        is_explicit_path = local_path.is_absolute() or model_name.startswith((".", "~"))
+        if is_explicit_path and not local_path.is_dir():
+            raise ValueError(
+                f"Local embedding model directory does not exist: {local_path}"
+            )
+
+        self.local_files_only = local_path.is_dir()
+        self.model_name = str(local_path) if self.local_files_only else model_name
         self.batch_size = batch_size
         self._model: object | None = None
 
@@ -37,7 +46,10 @@ class SentenceTransformerEmbedder:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.model_name)
+            self._model = SentenceTransformer(
+                self.model_name,
+                local_files_only=self.local_files_only,
+            )
         return self._model
 
     @property

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     opensearch_password: SecretStr | None = None
     opensearch_verify_certs: bool = False
     embedding_backend: EmbeddingBackend = "sentence_transformers"
-    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model_name: str = "BAAI/bge-large-en-v1.5"
     embedding_batch_size: int = Field(default=32, ge=1)
     rag_chunk_size: int = Field(default=1000, ge=100)
     rag_chunk_overlap: int = Field(default=150, ge=0)

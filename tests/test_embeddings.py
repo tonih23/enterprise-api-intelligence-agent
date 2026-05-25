@@ -1,6 +1,9 @@
 """Tests for selectable ingestion embedding implementations."""
 
 import math
+import sys
+from pathlib import Path
+from types import ModuleType
 
 import pytest
 from pydantic import ValidationError
@@ -12,6 +15,12 @@ from app.rag.embeddings import (
     SentenceTransformerEmbedder,
     create_embedder,
 )
+
+
+def test_default_real_embedding_model_is_bge_large() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.embedding_model_name == "BAAI/bge-large-en-v1.5"
 
 
 def test_settings_select_embedding_backend_from_environment(
@@ -35,12 +44,62 @@ def test_settings_select_embedding_backend_from_environment(
 def test_sentence_transformer_backend_selection_is_lazy() -> None:
     embedder = create_embedder(
         "sentence_transformers",
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_name="BAAI/bge-large-en-v1.5",
         batch_size=8,
     )
 
     assert isinstance(embedder, SentenceTransformerEmbedder)
+    assert embedder.model_name == "BAAI/bge-large-en-v1.5"
+    assert embedder.local_files_only is False
     assert embedder._model is None
+
+
+def test_sentence_transformer_loads_configured_local_path_offline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    local_model = tmp_path / "bge-large-en-v1.5"
+    local_model.mkdir()
+    loaded: dict[str, object] = {}
+    fake_module = ModuleType("sentence_transformers")
+
+    class FakeSentenceTransformer:
+        def __init__(self, model_name: str, *, local_files_only: bool) -> None:
+            loaded["model_name"] = model_name
+            loaded["local_files_only"] = local_files_only
+
+        def get_sentence_embedding_dimension(self) -> int:
+            return 1024
+
+    fake_module.SentenceTransformer = FakeSentenceTransformer  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+    monkeypatch.setenv("API_AGENT_EMBEDDING_BACKEND", "sentence_transformers")
+    monkeypatch.setenv("API_AGENT_EMBEDDING_MODEL_NAME", str(local_model))
+
+    settings = Settings(_env_file=None)
+    embedder = create_embedder(
+        settings.embedding_backend,
+        model_name=settings.embedding_model_name,
+        batch_size=settings.embedding_batch_size,
+    )
+
+    assert embedder.dimension == 1024
+    assert loaded == {
+        "model_name": str(local_model),
+        "local_files_only": True,
+    }
+
+
+def test_sentence_transformer_rejects_missing_explicit_local_path(
+    tmp_path: Path,
+) -> None:
+    missing_model = tmp_path / "missing-model"
+
+    with pytest.raises(ValueError, match="does not exist"):
+        create_embedder(
+            "sentence_transformers",
+            model_name=str(missing_model),
+            batch_size=8,
+        )
 
 
 def test_settings_reject_unsupported_embedding_backend() -> None:

@@ -123,28 +123,47 @@ uv run python scripts/ingest_docs.py
 The `.env.example` configuration selects `local_hashing` for an easy local
 smoke run:
 
-- `sentence_transformers` creates real semantic embeddings with the configured
-  model. It is the production-style backend and downloads model artifacts on
-  first use unless they are already cached.
+- `sentence_transformers` creates real semantic embeddings. The documented
+  semantic default is `BAAI/bge-large-en-v1.5`, a BGE large retrieval model.
+  A Hugging Face model ID downloads model artifacts on first use unless they
+  are already cached.
 - `local_hashing` creates deterministic, normalized lexical feature-hash
   vectors with no network access or model download. It is only a local
   development and CI fallback, not a production semantic embedding approach.
 
-Switch backends in `.env`:
+Switch backends in `.env`. The semantic backend accepts either a Hugging Face
+model ID or a previously downloaded local model folder:
 
 ```dotenv
 # No-network local or CI ingestion
 API_AGENT_EMBEDDING_BACKEND="local_hashing"
 
-# Semantic embedding ingestion
+# Real semantic embedding ingestion from Hugging Face
 API_AGENT_EMBEDDING_BACKEND="sentence_transformers"
-API_AGENT_EMBEDDING_MODEL_NAME="sentence-transformers/all-MiniLM-L6-v2"
+API_AGENT_EMBEDDING_MODEL_NAME="BAAI/bge-large-en-v1.5"
+API_AGENT_OPENSEARCH_INDEX_NAME="api_document_chunks_bge_large"
+
+# Real semantic embedding ingestion from a pre-downloaded local folder
+API_AGENT_EMBEDDING_BACKEND="sentence_transformers"
+API_AGENT_EMBEDDING_MODEL_NAME="/absolute/path/to/bge-large-en-v1.5"
+API_AGENT_OPENSEARCH_INDEX_NAME="api_document_chunks_bge_large"
 ```
 
-The local hashing dimension is `384`, matching the default semantic model
-dimension for convenient local testing. Running ingestion again replaces
-chunks with matching stable identifiers rather than intentionally duplicating
-them.
+When `API_AGENT_EMBEDDING_MODEL_NAME` points to an existing local directory,
+the ingestion pipeline loads that directory in offline mode and does not
+contact Hugging Face for model files. Keep local model directories out of
+source control.
+
+`local_hashing` produces 384-dimensional smoke-test vectors, while
+`BAAI/bge-large-en-v1.5` produces 1024-dimensional semantic vectors. OpenSearch
+vector dimensions cannot be changed in place: use a fresh index name when
+switching from an index built with 384-dimensional vectors to BGE large.
+Running ingestion again with the same compatible index replaces chunks with
+matching stable identifiers rather than intentionally duplicating them.
+
+In an enterprise deployment, the semantic backend would normally be connected
+to an approved internal embedding endpoint or an internally hosted approved
+model rather than depending on ad hoc workstation downloads.
 
 ## Configuration
 
@@ -162,7 +181,7 @@ Configuration is read from environment variables or a local `.env` file.
 | `API_AGENT_OPENSEARCH_INDEX_NAME` | Chunk index destination | `api_document_chunks` |
 | `API_AGENT_OPENSEARCH_VERIFY_CERTS` | Verify HTTPS certificates for OpenSearch | `false` |
 | `API_AGENT_EMBEDDING_BACKEND` | `local_hashing` fallback or `sentence_transformers` semantic embeddings | `local_hashing` in `.env.example` |
-| `API_AGENT_EMBEDDING_MODEL_NAME` | Model used by the `sentence_transformers` backend | `sentence-transformers/all-MiniLM-L6-v2` |
+| `API_AGENT_EMBEDDING_MODEL_NAME` | Hugging Face model ID or local folder used by `sentence_transformers` | `BAAI/bge-large-en-v1.5` |
 | `API_AGENT_EMBEDDING_BATCH_SIZE` | Number of chunk texts embedded per batch | `32` |
 | `API_AGENT_RAG_CHUNK_SIZE` | Maximum chunk size in characters | `1000` |
 | `API_AGENT_RAG_CHUNK_OVERLAP` | Repeated context between adjacent chunks | `150` |

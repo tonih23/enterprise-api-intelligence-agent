@@ -22,6 +22,12 @@ htmlcov/
 build/
 dist/
 
+# Local embedding model artifacts
+models/
+.models/
+hf-models/
+local-models/
+
 # Editors and operating system files
 .DS_Store
 .idea/

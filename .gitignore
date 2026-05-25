@@ -1,4 +1,4 @@
-# Environment configuration
+# Local environment configuration and secrets
 .env
 .env.*
 !.env.example
@@ -33,4 +33,3 @@ local-models/
 .DS_Store
 .idea/
 .vscode/
-.env

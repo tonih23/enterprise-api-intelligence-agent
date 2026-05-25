@@ -98,6 +98,30 @@ To run the API process directly while infrastructure remains containerized:
 uv run uvicorn app.main:app --reload
 ```
 
+## Quick Local Restart
+
+The versioned `local_scripts/` helpers contain no secrets; personal settings
+and optional provider keys belong only in the Git-ignored `.env` file.
+
+```bash
+cp .env.example .env
+./local_scripts/run_backend.sh
+```
+
+In another terminal, start the demo UI:
+
+```bash
+./local_scripts/run_ui.sh
+```
+
+`run_backend.sh` starts OpenSearch, Postgres, and Phoenix, ingests the
+synthetic corpus, and launches FastAPI. To rerun tests and the offline
+synthetic evaluation suite with the same local configuration:
+
+```bash
+./local_scripts/run_evals.sh
+```
+
 ## Observability
 
 Tracing is off by default. For local open-source inspection, set

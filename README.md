@@ -2,10 +2,10 @@
 
 ## Project Overview
 
-Enterprise API Intelligence Agent is an enterprise-style portfolio proof of
-concept inspired by API governance, MCP/tooling, and regulated AI patterns. It
-answers questions over synthetic API documentation, exposes controlled local
-tools, and pauses mock change actions for human approval.
+Enterprise API Intelligence Agent is an enterprise-style AI Engineering
+portfolio PoC inspired by API governance, MCP/tooling, and regulated AI
+patterns. It answers questions over synthetic API documentation, exposes
+controlled local tools, and pauses mock change actions for human approval.
 
 The project uses fictional API specifications and runbooks only. It does not
 contain internal company data or connect to real enterprise systems.
@@ -35,6 +35,7 @@ flowchart LR
     Ingest --> Search["OpenSearch"]
     RAG --> Search
     Graph -. "optional traces" .-> Phoenix["Phoenix"]
+    Graph -. "optional traces" .-> LangSmith["LangSmith"]
     Phoenix --> Postgres["Postgres<br/>local trace storage"]
     Evals["Synthetic eval suite"] --> Graph
 ```
@@ -70,7 +71,7 @@ extension.
 | Evaluations | Runs a 20-question synthetic baseline for route, source, tool, approval, and groundedness metrics. |
 | Optional synthesis | Uses Gemini only to phrase final grounded answers when explicitly configured. |
 
-## How To Run Locally
+## Quickstart
 
 Requirements: [uv](https://docs.astral.sh/uv/), Python 3.11, and Docker
 Compose for the local infrastructure stack.
@@ -98,7 +99,7 @@ To run the API process directly while infrastructure remains containerized:
 uv run uvicorn app.main:app --reload
 ```
 
-## Quick Local Restart
+## Running Backend And UI
 
 The versioned `local_scripts/` helpers contain no secrets; personal settings
 and optional provider keys belong only in the Git-ignored `.env` file.
@@ -115,12 +116,22 @@ In another terminal, start the demo UI:
 ```
 
 `run_backend.sh` starts OpenSearch, Postgres, and Phoenix, ingests the
-synthetic corpus, and launches FastAPI. To rerun tests and the offline
-synthetic evaluation suite with the same local configuration:
+synthetic corpus, and launches FastAPI. The Streamlit UI is a local HTTP
+client for the FastAPI agent; it does not duplicate workflow logic. For a
+guided walkthrough, see [docs/demo_script.md](docs/demo_script.md).
 
-```bash
-./local_scripts/run_evals.sh
-```
+## Screenshots
+
+Public-safe screenshot placeholders are reserved under `assets/screenshots/`.
+Capture guidance and filenames are listed in
+[docs/screenshot_checklist.md](docs/screenshot_checklist.md).
+
+| Demo View | Placeholder Path |
+| --- | --- |
+| Streamlit home | `assets/screenshots/01-streamlit-home.png` |
+| Grounded RAG answer and sources | `assets/screenshots/02-rag-gemini-sources.png` |
+| Approval gate | `assets/screenshots/04-human-approval-pending.png` |
+| Phoenix trace | `assets/screenshots/06-phoenix-agent-trace.png` |
 
 ## Observability
 
@@ -132,25 +143,6 @@ uncommitted `LANGSMITH_API_KEY`. Legacy `ENABLE_TRACING=true` still enables
 Phoenix when no backend is selected. Both paths export workflow metadata
 only, not prompts, retrieved passages, tool arguments, or secrets. See
 [docs/observability.md](docs/observability.md).
-
-## Local Demo UI
-
-The Streamlit UI is a local HTTP client for the existing FastAPI endpoints; it
-does not duplicate agent logic. After starting the backend and ingesting the
-synthetic documents as described below, run:
-
-```bash
-uv run uvicorn app.main:app --reload
-uv run streamlit run demo/streamlit_app.py
-```
-
-The UI selects `keyword`, `vector`, or `hybrid` retrieval for documentation
-questions and displays workflow route, approval state, tools, sources, and
-evidence, including whether final wording used deterministic or Gemini mode.
-To demonstrate BGE large, configure
-`API_AGENT_EMBEDDING_BACKEND="sentence_transformers"` and a BGE model ID or
-local folder before ingestion, using a fresh 1024-dimensional index. See
-[docs/demo.md](docs/demo.md).
 
 ## How To Ingest Synthetic Docs
 
@@ -210,9 +202,10 @@ an external change-management system. Tool contracts are documented in
 [docs/mcp_tools.md](docs/mcp_tools.md). Documentation routes also return
 `retrieved_chunks` for evidence display in local clients.
 
-## How To Run Evals
+## Running Tests And Evals
 
 ```bash
+uv run pytest
 uv run python -m app.evals.run_evals
 ```
 
@@ -220,6 +213,15 @@ The offline synthetic baseline writes `artifacts/evals/latest.json` and
 reports `route_accuracy`, `source_recall`, `tool_call_accuracy`,
 `approval_precision`, and heuristic `answer_groundedness`. See
 [docs/evaluation.md](docs/evaluation.md).
+
+Before publication, run the deterministic safety gate:
+
+```bash
+./local_scripts/pre_publish_check.sh
+```
+
+Publication steps are documented in
+[docs/github_publish.md](docs/github_publish.md).
 
 ## Local Embeddings
 
@@ -275,6 +277,7 @@ This is a local portfolio PoC with production-shaped boundaries: typed APIs,
 retrieval metadata, workflow controls, optional traces, and evaluations.
 Production deployment would require managed infrastructure, durable
 operational storage, security controls, and an integrated approval workflow.
+Model endpoints and observability platforms would need enterprise approval.
 See [docs/production_readiness.md](docs/production_readiness.md).
 
 ## Limitations

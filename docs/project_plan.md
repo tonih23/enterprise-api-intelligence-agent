@@ -4,7 +4,8 @@
 
 Build a production-style, locally runnable reference application that answers questions about synthetic API documentation, invokes MCP tools through a governed LangGraph workflow, requires human approval for sensitive actions, and exposes operational evidence through tracing and evaluation.
 
-No application code is implemented as part of this initial planning deliverable.
+The initial FastAPI and local-infrastructure foundation is implemented, along
+with the first synthetic documentation corpus described below.
 
 ## Target Outcomes
 
@@ -25,7 +26,7 @@ retrieval/              Ingestion, chunking, embeddings, hybrid search
 mcp_server/             MCP tools and tool policy metadata
 persistence/            Postgres models and repositories
 observability/          Phoenix tracing and evaluation integration
-synthetic_data/         Fake API docs, OpenAPI specs, Postman collections
+data/                   Synthetic docs, OpenAPI specs, Postman collections
 evals/                  Evaluation datasets and runners
 tests/                  Unit, integration, and API tests
 docs/                   Architecture, operating, and design documentation
@@ -34,6 +35,29 @@ docker-compose.yml      Local service topology
 ```
 
 Every major module should include a short README describing responsibility, interfaces, configuration, and test commands.
+
+## Synthetic Dataset
+
+The initial corpus uses a fictional Atlas Health Services sandbox scenario for
+realistic retrieval, governance, and interview demonstration flows. It does
+not represent a real organization or contain real company, healthcare
+professional, patient, clinical trial, incident, or credential information.
+
+| Artifact | Retrieval or evaluation purpose |
+| --- | --- |
+| `data/docs/fake_mulesoft_api_catalogue.md` | Catalogue lookup, endpoint discovery, scope questions, and approval classification |
+| `data/api_specs/hcp_search_api.openapi.yaml` | Exact HCP search paths, schemas, errors, and read-only policy examples |
+| `data/api_specs/clinical_trials_api.openapi.yaml` | Trial discovery operations and an explicit approval-required action |
+| `data/api_specs/atlas_api_demo.postman_collection.json` | Example read requests and a governed write request with runtime token placeholder |
+| `data/docs/api_governance_runbook.md` | Registration, classification, and human approval policy retrieval |
+| `data/docs/incident_response_runbook.md` | Incident triage and policy-bypass response retrieval |
+| `data/docs/teams_bot_architecture_notes.md` | Channel integration, grounded answers, and approval-card architecture |
+
+All artifacts provide normalized metadata fields: `domain`, `owner`,
+`data_classification`, `system`, `api_name`, and `version`. Markdown files use
+YAML front matter; OpenAPI files use `info.x-agent-metadata`; and the Postman
+collection uses `x-agent-metadata`. Reserved `.test` hostnames and invented
+`*-SYN-*` identifiers make the synthetic boundary explicit.
 
 ## Delivery Phases
 
@@ -54,7 +78,7 @@ Validation:
 
 Deliverables:
 
-- Invented API product documentation, fake OpenAPI specs, and fake Postman collections.
+- Invented API product documentation, fake OpenAPI specs, and a fake Postman collection.
 - Corpus metadata conventions for API, version, document type, endpoint, and risk category.
 - Ingestion fixtures suitable for deterministic tests.
 

@@ -1,0 +1,181 @@
+{
+  "info": {
+    "_postman_id": "3b67b3fc-a126-4fc2-9f2a-4a2ce2a20001",
+    "name": "Fictional Atlas API Sandbox Demonstration",
+    "description": "Synthetic interview demonstration requests for invented HCP and clinical trial APIs. No real records or credentials are included.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "x-agent-metadata": {
+    "synthetic": true,
+    "domain": "api_enablement",
+    "owner": "fictional_api_platform_team",
+    "data_classification": "synthetic_internal",
+    "system": "atlas_sandbox_gateway",
+    "api_name": "atlas_api_demo_collection",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.variables.set('correlation_id', 'corr-syn-' + pm.variables.replaceIn('{{$randomUUID}}'));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "HCP Search API",
+      "item": [
+        {
+          "name": "Search synthetic cardiology HCPs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlation_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{hcp_base_url}}/healthcare-professionals?specialty=cardiology&country=ES&page_size=20",
+              "host": [
+                "{{hcp_base_url}}"
+              ],
+              "path": [
+                "healthcare-professionals"
+              ],
+              "query": [
+                {
+                  "key": "specialty",
+                  "value": "cardiology"
+                },
+                {
+                  "key": "country",
+                  "value": "ES"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Returns invented directory summaries only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get synthetic HCP profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlation_id}}"
+              }
+            ],
+            "url": "{{hcp_base_url}}/healthcare-professionals/HCP-SYN-1001",
+            "description": "Reads the fictional profile HCP-SYN-1001."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clinical Trials API",
+      "item": [
+        {
+          "name": "Search synthetic recruiting trials",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlation_id}}"
+              }
+            ],
+            "url": "{{trials_base_url}}/trials?therapeutic_area=cardiology&recruiting_status=recruiting&country=ES",
+            "description": "Searches invented trial summary entries."
+          },
+          "response": []
+        },
+        {
+          "name": "List synthetic trial sites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlation_id}}"
+              }
+            ],
+            "url": "{{trials_base_url}}/trials/TRIAL-SYN-204/sites",
+            "description": "Returns invented site entries for TRIAL-SYN-204."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit approved synthetic interest request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlation_id}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "interest-syn-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trial_id\": \"TRIAL-SYN-204\",\n  \"hcp_id\": \"HCP-SYN-1001\",\n  \"reason\": \"Requested fictional sandbox follow-up demonstration.\",\n  \"approval_id\": \"apr-syn-017\"\n}"
+            },
+            "url": "{{trials_base_url}}/trial-interest-requests",
+            "description": "Approval-required synthetic request. Execute only after a recorded sandbox approval decision."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "hcp_base_url",
+      "value": "https://sandbox.api.atlas-health.test/hcp-search/v1",
+      "type": "string"
+    },
+    {
+      "key": "trials_base_url",
+      "value": "https://sandbox.api.atlas-health.test/clinical-trials/v2",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "replace-at-runtime",
+      "type": "secret"
+    },
+    {
+      "key": "correlation_id",
+      "value": "corr-syn-placeholder",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+openapi: 3.1.0
+info:
+  title: Fictional HCP Search API
+  version: 1.2.0
+  description: |
+    A synthetic sandbox API for retrieving invented healthcare professional
+    directory examples. It contains no real professional or patient data.
+  contact:
+    name: Fictional Provider Experience Platform
+    email: provider-platform@example.test
+  x-agent-metadata:
+    synthetic: true
+    domain: healthcare_professional_engagement
+    owner: fictional_provider_experience_platform
+    data_classification: synthetic_restricted
+    system: atlas_hcp_directory_sandbox
+    api_name: hcp_search_api
+    version: 1.2.0
+servers:
+  - url: https://sandbox.api.atlas-health.test/hcp-search/v1
+    description: Fictional sandbox only
+tags:
+  - name: Healthcare Professionals
+    description: Read-only operations over invented directory records.
+security:
+  - oauth2: [hcp.read]
+paths:
+  /healthcare-professionals:
+    get:
+      tags: [Healthcare Professionals]
+      summary: Search synthetic healthcare professional records
+      operationId: searchHealthcareProfessionals
+      x-risk-level: low
+      x-human-approval-required: false
+      parameters:
+        - in: query
+          name: name
+          description: Full or partial fictional professional name.
+          schema:
+            type: string
+            minLength: 2
+          example: Ada Navarro
+        - in: query
+          name: specialty
+          schema:
+            type: string
+          example: cardiology
+        - in: query
+          name: country
+          schema:
+            type: string
+            pattern: "^[A-Z]{2}$"
+          example: ES
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Matching fictional records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HcpSearchResponse"
+              examples:
+                cardiologyInSpain:
+                  summary: Invented result
+                  value:
+                    records:
+                      - hcp_id: HCP-SYN-1001
+                        display_name: Dr Ada Navarro
+                        specialty: cardiology
+                        country: ES
+                        status: active
+                    page:
+                      page_size: 20
+                      next_cursor: null
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /healthcare-professionals/{hcp_id}:
+    get:
+      tags: [Healthcare Professionals]
+      summary: Get one synthetic healthcare professional profile
+      operationId: getHealthcareProfessional
+      x-risk-level: low
+      x-human-approval-required: false
+      parameters:
+        - name: hcp_id
+          in: path
+          required: true
+          description: Invented record identifier.
+          schema:
+            type: string
+            pattern: "^HCP-SYN-[0-9]{4}$"
+          example: HCP-SYN-1001
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Invented healthcare professional profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HcpProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Fictional client credentials flow for sandbox demonstrations.
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.atlas-health.test/oauth2/token
+          scopes:
+            hcp.read: Read synthetic HCP directory examples.
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: true
+      description: Caller-provided synthetic trace correlation identifier.
+      schema:
+        type: string
+      example: corr-syn-0fc51d
+  schemas:
+    HcpSummary:
+      type: object
+      required: [hcp_id, display_name, specialty, country, status]
+      properties:
+        hcp_id:
+          type: string
+          example: HCP-SYN-1001
+        display_name:
+          type: string
+          example: Dr Ada Navarro
+        specialty:
+          type: string
+          example: cardiology
+        country:
+          type: string
+          example: ES
+        status:
+          type: string
+          enum: [active, inactive]
+    HcpProfile:
+      allOf:
+        - $ref: "#/components/schemas/HcpSummary"
+        - type: object
+          required: [practice_region, preferred_language]
+          properties:
+            practice_region:
+              type: string
+              example: Madrid-SYN
+            preferred_language:
+              type: string
+              example: es
+            interests:
+              type: array
+              items:
+                type: string
+              example: [heart_failure, clinical_research]
+    Page:
+      type: object
+      required: [page_size]
+      properties:
+        page_size:
+          type: integer
+          example: 20
+        next_cursor:
+          type: [string, "null"]
+          example: null
+    HcpSearchResponse:
+      type: object
+      required: [records, page]
+      properties:
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/HcpSummary"
+        page:
+          $ref: "#/components/schemas/Page"
+    Problem:
+      type: object
+      required: [code, message, correlation_id]
+      properties:
+        code:
+          type: string
+          example: INVALID_QUERY
+        message:
+          type: string
+          example: At least one search filter must be supplied.
+        correlation_id:
+          type: string
+          example: corr-syn-0fc51d
+  responses:
+    BadRequest:
+      description: Search request is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: Token missing or does not include the required fictional scope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: No fictional profile matches the supplied identifier.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    RateLimited:
+      description: Sandbox request rate has been exceeded.
+      headers:
+        Retry-After:
+          description: Seconds before a client should retry.
+          schema:
+            type: integer
+            example: 30
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"

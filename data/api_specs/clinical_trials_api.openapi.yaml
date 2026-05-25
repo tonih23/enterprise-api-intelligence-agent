@@ -1,0 +1,307 @@
+openapi: 3.1.0
+info:
+  title: Fictional Clinical Trials API
+  version: 2.1.0
+  description: |
+    A synthetic API describing invented study summaries and sites for
+    governance and retrieval demonstrations. No real trial or participant
+    records are represented.
+  contact:
+    name: Fictional Trial Discovery Platform
+    email: trial-platform@example.test
+  x-agent-metadata:
+    synthetic: true
+    domain: research_operations
+    owner: fictional_trial_discovery_platform
+    data_classification: synthetic_internal
+    system: atlas_trial_registry_sandbox
+    api_name: clinical_trials_api
+    version: 2.1.0
+servers:
+  - url: https://sandbox.api.atlas-health.test/clinical-trials/v2
+    description: Fictional sandbox only
+tags:
+  - name: Trials
+    description: Read-only study discovery over invented entries.
+  - name: Interest Requests
+    description: Governed proposals that require human approval.
+security:
+  - oauth2: [trials.read]
+paths:
+  /trials:
+    get:
+      tags: [Trials]
+      summary: Search fictional trial summaries
+      operationId: searchTrials
+      x-risk-level: low
+      x-human-approval-required: false
+      parameters:
+        - in: query
+          name: therapeutic_area
+          schema:
+            type: string
+          example: cardiology
+        - in: query
+          name: recruiting_status
+          schema:
+            type: string
+            enum: [recruiting, planned, closed]
+          example: recruiting
+        - in: query
+          name: country
+          schema:
+            type: string
+            pattern: "^[A-Z]{2}$"
+          example: ES
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Matching fictional study summaries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialSearchResponse"
+              examples:
+                recruitingCardiology:
+                  summary: Invented trial result
+                  value:
+                    trials:
+                      - trial_id: TRIAL-SYN-204
+                        title: ORBIT-SYN Heart Rhythm Study
+                        therapeutic_area: cardiology
+                        phase: Phase II
+                        recruiting_status: recruiting
+                        countries: [ES, PT]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /trials/{trial_id}:
+    get:
+      tags: [Trials]
+      summary: Retrieve a fictional trial summary
+      operationId: getTrial
+      x-risk-level: low
+      x-human-approval-required: false
+      parameters:
+        - $ref: "#/components/parameters/TrialId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Invented trial detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /trials/{trial_id}/sites:
+    get:
+      tags: [Trials]
+      summary: List fictional participating sites
+      operationId: listTrialSites
+      x-risk-level: low
+      x-human-approval-required: false
+      parameters:
+        - $ref: "#/components/parameters/TrialId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Invented study sites.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sites]
+                properties:
+                  sites:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TrialSite"
+  /trial-interest-requests:
+    post:
+      tags: [Interest Requests]
+      summary: Submit a fictional trial-interest request after approval
+      description: |
+        This synthetic operation represents a side-effecting workflow. An
+        agent must create a pending proposal and obtain recorded human approval
+        before invoking it.
+      operationId: createTrialInterestRequest
+      security:
+        - oauth2: [trials.interest.write]
+      x-risk-level: approval_required
+      x-human-approval-required: true
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+          example: interest-syn-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrialInterestRequest"
+            example:
+              trial_id: TRIAL-SYN-204
+              hcp_id: HCP-SYN-1001
+              reason: Requested fictional sandbox follow-up demonstration.
+              approval_id: apr-syn-017
+      responses:
+        "202":
+          description: The approved synthetic interest request was accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedInterestRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Approval or idempotency validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Fictional OAuth flow for sandbox demonstrations.
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.atlas-health.test/oauth2/token
+          scopes:
+            trials.read: Read invented study summaries and sites.
+            trials.interest.write: Submit an approved fictional interest request.
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: true
+      schema:
+        type: string
+      example: corr-syn-8f19c2
+    TrialId:
+      name: trial_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^TRIAL-SYN-[0-9]{3}$"
+      example: TRIAL-SYN-204
+  schemas:
+    TrialSummary:
+      type: object
+      required:
+        [trial_id, title, therapeutic_area, phase, recruiting_status, countries]
+      properties:
+        trial_id:
+          type: string
+          example: TRIAL-SYN-204
+        title:
+          type: string
+          example: ORBIT-SYN Heart Rhythm Study
+        therapeutic_area:
+          type: string
+          example: cardiology
+        phase:
+          type: string
+          enum: [Phase I, Phase II, Phase III]
+        recruiting_status:
+          type: string
+          enum: [recruiting, planned, closed]
+        countries:
+          type: array
+          items:
+            type: string
+          example: [ES, PT]
+    TrialDetail:
+      allOf:
+        - $ref: "#/components/schemas/TrialSummary"
+        - type: object
+          required: [summary, eligibility_overview]
+          properties:
+            summary:
+              type: string
+              example: Fictional assessment of a digital monitoring pathway.
+            eligibility_overview:
+              type: string
+              example: Synthetic adult eligibility criteria for demonstration only.
+    TrialSite:
+      type: object
+      required: [site_id, display_name, country, recruiting_status]
+      properties:
+        site_id:
+          type: string
+          example: SITE-SYN-09
+        display_name:
+          type: string
+          example: Aurora Research Centre - Fictional Madrid
+        country:
+          type: string
+          example: ES
+        recruiting_status:
+          type: string
+          example: recruiting
+    TrialSearchResponse:
+      type: object
+      required: [trials]
+      properties:
+        trials:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrialSummary"
+    TrialInterestRequest:
+      type: object
+      required: [trial_id, hcp_id, reason, approval_id]
+      properties:
+        trial_id:
+          type: string
+        hcp_id:
+          type: string
+        reason:
+          type: string
+          maxLength: 500
+        approval_id:
+          type: string
+          description: Reference to a recorded synthetic approval decision.
+    AcceptedInterestRequest:
+      type: object
+      required: [request_id, status, approval_id]
+      properties:
+        request_id:
+          type: string
+          example: TIR-SYN-0022
+        status:
+          type: string
+          const: accepted
+        approval_id:
+          type: string
+          example: apr-syn-017
+    Problem:
+      type: object
+      required: [code, message, correlation_id]
+      properties:
+        code:
+          type: string
+          example: APPROVAL_REQUIRED
+        message:
+          type: string
+          example: A recorded approval is required before this action.
+        correlation_id:
+          type: string
+          example: corr-syn-8f19c2
+  responses:
+    Unauthorized:
+      description: Token missing or lacking the fictional required scope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: No fictional trial exists for the requested identifier.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"

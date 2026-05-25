@@ -20,6 +20,7 @@ flowchart LR
     Corpus["Synthetic docs and specs"] --> Ingest["Ingestion and embeddings"]
     Ingest --> OS
     Graph --> Tools["Shared local tool logic"]
+    Graph --> Answer["Final answer: deterministic<br/>or optional Gemini"]
     MCP["Optional FastMCP stdio server"] --> Tools
     API --> Repo["In-memory session and approval repository"]
     Repo -. "future adapter" .-> PG["Managed/Postgres persistence"]
@@ -36,7 +37,7 @@ logic used by the graph.
 | Component | Responsibility | Current Boundary |
 | --- | --- | --- |
 | FastAPI | Typed HTTP endpoints and validation | `/health`, `/rag/search`, and `/agent/*` |
-| LangGraph | Deterministic route and control flow | No external LLM call |
+| LangGraph | Deterministic route and control flow | Optional LLM use is limited to final wording |
 | RAG layer | Chunk ingestion and keyword/vector/hybrid retrieval | Synthetic corpus only |
 | OpenSearch | Search index for chunks, metadata, and vectors | Local development service |
 | MCP-style tools | Catalogue lookup, spec validation, mock change request | No external system writes |
@@ -63,12 +64,14 @@ flowchart TD
     Approval --> FinalGuard
     FinalGuard --> Answer["final_answer"]
     Answer --> Output["AgentResponse"]
+    Answer -. "when configured" .-> Gemini["Gemini answer synthesis"]
 ```
 
 The router is intentionally deterministic and configured with
 `API_AGENT_ROUTER_BACKEND="deterministic"`. An LLM router could later use the
-same typed workflow boundary, but this PoC requires no external LLM API or
-model key.
+same typed workflow boundary. Final answer synthesis is deterministic by
+default; `API_AGENT_LLM_PROVIDER="gemini"` optionally uses Gemini after
+guardrails and evidence collection, with deterministic fallback on failure.
 
 ## Decisions And Trade-Offs
 

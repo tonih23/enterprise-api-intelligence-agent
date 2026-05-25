@@ -30,6 +30,7 @@ flowchart LR
     Graph --> Policy["Guardrails and<br/>human approval"]
     Graph --> RAG["Hybrid RAG<br/>BM25 + vector"]
     Graph --> Tools["Local MCP-style tools"]
+    Graph --> Answer["Final answer<br/>deterministic or optional Gemini"]
     Docs["Synthetic docs<br/>and API specs"] --> Ingest["Chunking and<br/>embeddings"]
     Ingest --> Search["OpenSearch"]
     RAG --> Search
@@ -48,6 +49,7 @@ extension.
 | --- | --- |
 | API service | Python 3.11, FastAPI, Pydantic |
 | Agent workflow | LangGraph with deterministic routing |
+| Answer synthesis | Deterministic by default; optional Google Gemini |
 | Tool interface | MCP Python SDK with local synthetic tools |
 | Retrieval | OpenSearch hybrid keyword/vector search |
 | Embeddings | Sentence Transformers or deterministic `local_hashing` fallback |
@@ -66,6 +68,7 @@ extension.
 | Guardrails | Rejects restricted requests and requires sources for documentation-based factual answers. |
 | Tracing | Optionally exports workflow spans to local Phoenix for AgentOps inspection. |
 | Evaluations | Runs a 20-question synthetic baseline for route, source, tool, approval, and groundedness metrics. |
+| Optional synthesis | Uses Gemini only to phrase final grounded answers when explicitly configured. |
 
 ## How To Run Locally
 
@@ -113,7 +116,8 @@ uv run streamlit run demo/streamlit_app.py
 
 The UI selects `keyword`, `vector`, or `hybrid` retrieval for documentation
 questions and displays workflow route, approval state, tools, sources, and
-evidence. To demonstrate BGE large, configure
+evidence, including whether final wording used deterministic or Gemini mode.
+To demonstrate BGE large, configure
 `API_AGENT_EMBEDDING_BACKEND="sentence_transformers"` and a BGE model ID or
 local folder before ingestion, using a fresh 1024-dimensional index. See
 [docs/demo.md](docs/demo.md).
@@ -215,6 +219,26 @@ Use a fresh OpenSearch index when switching from 384-dimensional
 deployments would typically use an approved internal embedding endpoint or an
 internally hosted approved model.
 
+## Optional Answer Synthesis
+
+Answer generation is deterministic by default and requires no LLM key:
+
+```dotenv
+API_AGENT_LLM_PROVIDER="none"
+API_AGENT_LLM_MODEL="gemini-2.5-flash"
+```
+
+For a local Gemini demo, set `API_AGENT_LLM_PROVIDER="gemini"` and provide
+`GOOGLE_API_KEY` in the uncommitted local `.env` file. Gemini is called only
+in the final-answer step; retrieval, embeddings, MCP-style tools, guardrails,
+and approval remain unchanged. If Gemini is unavailable, the API returns the
+deterministic answer and an `answer_synthesis.warning`.
+
+The free Gemini Developer API is appropriate only for a local portfolio demo.
+An enterprise deployment would normally select Vertex AI/Gemini Enterprise,
+Azure OpenAI, Bedrock, or an approved internal LLM endpoint under applicable
+security and governance controls.
+
 ## Production And Cloud Readiness
 
 This is a local portfolio PoC with production-shaped boundaries: typed APIs,
@@ -226,7 +250,7 @@ See [docs/production_readiness.md](docs/production_readiness.md).
 ## Limitations
 
 - The corpus and all tool results are synthetic; no real enterprise access is provided.
-- Routing and response generation are deterministic; no external LLM is called.
+- Routing is deterministic; Gemini final-answer synthesis is optional and off by default.
 - Session and approval records are local in-memory data, and eval output is local JSON.
 - Guardrails are baseline deterministic controls, not a complete security policy layer.
 - Local Compose settings are designed for development, not a hardened deployment.

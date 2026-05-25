@@ -4,7 +4,7 @@ from urllib.error import URLError
 
 import pytest
 
-from demo.streamlit_app import DemoApiError, flow_steps, post_json
+from demo.streamlit_app import DemoApiError, flow_steps, post_json, synthesis_display
 
 
 def test_flow_steps_includes_approval_only_for_pending_action() -> None:
@@ -29,3 +29,18 @@ def test_post_json_explains_when_fastapi_backend_is_unavailable(
             "/agent/chat",
             {"user_message": "Synthetic question"},
         )
+
+
+def test_synthesis_display_shows_mode_model_and_fallback_warning() -> None:
+    assert synthesis_display(
+        {"answer_synthesis": {"mode": "gemini", "model": "gemini-2.5-flash"}}
+    ) == ("Gemini", "gemini-2.5-flash", None)
+    assert synthesis_display(
+        {
+            "answer_synthesis": {
+                "mode": "deterministic",
+                "model": "gemini-2.5-flash",
+                "warning": "Provider unavailable.",
+            }
+        }
+    ) == ("Deterministic", "gemini-2.5-flash", "Provider unavailable.")

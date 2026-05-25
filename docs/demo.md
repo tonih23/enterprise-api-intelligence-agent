@@ -61,3 +61,23 @@ API_AGENT_OPENSEARCH_INDEX_NAME="api_document_chunks_bge_large"
 
 BGE large uses 1024-dimensional vectors; create a fresh index rather than
 reusing an index built with the 384-dimensional `local_hashing` fallback.
+
+## Answer Synthesis Modes
+
+By default, the backend returns deterministic answers and does not require an
+LLM key:
+
+```dotenv
+API_AGENT_LLM_PROVIDER="none"
+API_AGENT_LLM_MODEL="gemini-2.5-flash"
+```
+
+To demonstrate cleaner final wording through Gemini, set
+`API_AGENT_LLM_PROVIDER="gemini"` and set `GOOGLE_API_KEY` only in your local,
+uncommitted `.env`. The UI displays the synthesis mode, configured model, and
+any fallback warning. Gemini is not used for retrieval, embeddings, tools, or
+approval decisions.
+
+The free Gemini Developer API is for local demo use only. Enterprise
+deployments would normally use Vertex AI/Gemini Enterprise, Azure OpenAI,
+Bedrock, or an approved internal LLM endpoint.

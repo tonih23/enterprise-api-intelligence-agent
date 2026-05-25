@@ -10,6 +10,7 @@ from typing import Protocol, TypeVar
 
 from app.agent.state import AgentState
 from app.config import Settings, get_settings
+from app.llm.schemas import AnswerSynthesisStatus
 
 logger = logging.getLogger(__name__)
 TraceValue = str | bool | int | float
@@ -182,3 +183,8 @@ def _annotate_node_result(name: str, result: NodeResult, span: TraceSpan) -> Non
         span.set_attribute("approval.required", True)
     if name == "final_answer":
         span.set_attribute("answer.generated", result.get("answer_text") is not None)
+        synthesis = result.get("answer_synthesis")
+        if isinstance(synthesis, AnswerSynthesisStatus):
+            span.set_attribute("answer.synthesis_mode", synthesis.mode)
+            if synthesis.model:
+                span.set_attribute("llm.model", synthesis.model)

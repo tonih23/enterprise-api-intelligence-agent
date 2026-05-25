@@ -100,11 +100,13 @@ def test_chat_returns_graph_result_and_session_history() -> None:
     assert payload["retrieved_chunks"][0]["chunk_id"] == "chat-source"
     assert payload["sources"][0]["chunk_id"] == "chat-source"
     assert payload["approval_status"] == "not_required"
+    assert payload["answer_synthesis"]["mode"] == "deterministic"
     assert payload["session_id"].startswith("session_")
 
     history = client.get(f"/agent/sessions/{payload['session_id']}")
     assert history.status_code == 200
     assert history.json()["messages"][0]["user_message"].startswith("Which API")
+    assert history.json()["messages"][0]["answer_synthesis"]["mode"] == "deterministic"
     assert history.json()["approvals"] == []
 
 

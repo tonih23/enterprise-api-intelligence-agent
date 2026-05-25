@@ -27,6 +27,7 @@ from app.agent.state import (
     ToolCallRecord,
 )
 from app.config import Settings, get_settings
+from app.llm.schemas import AnswerSynthesisStatus
 from app.mcp_server.schemas import ChangeRequestInput, MockChangeRequest
 from app.mcp_server.tools import McpToolService
 from app.observability.phoenix import AgentTracer, get_agent_tracer
@@ -77,6 +78,9 @@ class ChatResponse(BaseModel):
     sources: list[SourceReference] = Field(default_factory=list)
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
     approval_status: ApprovalStatus
+    answer_synthesis: AnswerSynthesisStatus = Field(
+        default_factory=AnswerSynthesisStatus
+    )
     session_id: str
     approval_id: str | None = None
 
@@ -88,6 +92,9 @@ class SessionTurnResponse(BaseModel):
     final_answer: str
     route_taken: AgentRoute
     approval_status: ApprovalStatus
+    answer_synthesis: AnswerSynthesisStatus = Field(
+        default_factory=AnswerSynthesisStatus
+    )
     approval_id: str | None = None
 
 
@@ -117,6 +124,9 @@ class ApprovalResponse(BaseModel):
     final_answer: str
     tool_calls: list[ToolCallRecord]
     approved_mock_action: MockChangeRequest
+    answer_synthesis: AnswerSynthesisStatus = Field(
+        default_factory=AnswerSynthesisStatus
+    )
 
 
 def get_agent_workflow(
@@ -220,6 +230,7 @@ def _chat_response(
         sources=result.sources,
         tool_calls=result.tool_calls,
         approval_status=result.approval_status,
+        answer_synthesis=result.answer_synthesis,
         session_id=session_id,
         approval_id=approval.approval_id if approval else None,
     )
@@ -289,6 +300,7 @@ def _session_response(session: SessionRecord) -> SessionHistoryResponse:
                 final_answer=turn.response.answer_text,
                 route_taken=turn.response.route_taken,
                 approval_status=turn.response.approval_status,
+                answer_synthesis=turn.response.answer_synthesis,
                 approval_id=turn.approval_id,
             )
             for turn in session.turns

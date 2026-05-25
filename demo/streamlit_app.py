@@ -66,6 +66,15 @@ def flow_steps(response: dict[str, Any]) -> list[tuple[str, str]]:
     return steps
 
 
+def synthesis_display(response: dict[str, Any]) -> tuple[str, str, str | None]:
+    """Return display-ready synthesis metadata."""
+
+    synthesis = response.get("answer_synthesis") or {}
+    mode = "Gemini" if synthesis.get("mode") == "gemini" else "Deterministic"
+    model = synthesis.get("model") or "Not configured"
+    return mode, model, synthesis.get("warning")
+
+
 def render_flow(response: dict[str, Any]) -> None:
     """Render the route as a simple visual timeline."""
 
@@ -87,10 +96,15 @@ def render_result(api_url: str, response: dict[str, Any]) -> None:
     st.subheader("Final Answer")
     st.write(response.get("final_answer", "No answer returned."))
 
-    summary_columns = st.columns(3)
+    answer_mode, llm_model, synthesis_warning = synthesis_display(response)
+    summary_columns = st.columns(4)
     summary_columns[0].metric("Route Taken", response.get("route_taken", "-"))
     summary_columns[1].metric("Approval Status", response.get("approval_status", "-"))
-    summary_columns[2].metric("Session", response.get("session_id", "-"))
+    summary_columns[2].metric("Answer Synthesis", answer_mode)
+    summary_columns[3].metric("LLM Model", llm_model)
+    st.caption(f"Session: `{response.get('session_id', '-')}`")
+    if synthesis_warning:
+        st.warning(synthesis_warning)
 
     if response.get("approval_status") == "pending_human_approval" and response.get(
         "approval_id"

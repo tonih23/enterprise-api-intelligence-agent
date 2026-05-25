@@ -11,7 +11,7 @@ from app.agent.guardrails import (
     tool_guardrail_node,
     tool_guardrail_path,
 )
-from app.agent.nodes.final_answer import final_answer_node
+from app.agent.nodes.final_answer import create_final_answer_node
 from app.agent.nodes.human_approval import human_approval_node
 from app.agent.nodes.mcp_node import LocalMcpTools, create_mcp_node
 from app.agent.nodes.rag_node import create_rag_node
@@ -24,6 +24,7 @@ from app.agent.state import (
     response_from_state,
 )
 from app.config import RouterBackend, Settings, get_settings
+from app.llm.provider import AnswerSynthesizer, create_answer_synthesizer
 from app.mcp_server.tools import CatalogRetriever, McpToolService
 from app.observability.phoenix import (
     AgentTracer,
@@ -46,11 +47,13 @@ def build_agent_graph(
     mcp_tools: LocalMcpTools | None = None,
     router_backend: RouterBackend = "deterministic",
     tracer: AgentTracer | None = None,
+    answer_synthesizer: AnswerSynthesizer | None = None,
 ) -> CompiledAgentGraph:
     """Compile the deterministic graph with injected retrieval and tool services."""
 
     tools = mcp_tools or McpToolService(retriever=retriever)
     configured_tracer = tracer or NoOpTracer()
+    configured_synthesizer = answer_synthesizer or AnswerSynthesizer()
     graph = StateGraph(AgentState)
     graph.add_node(
         "request_guardrails",
@@ -78,7 +81,11 @@ def build_agent_graph(
     )
     graph.add_node(
         "final_answer",
-        traced_node("final_answer", final_answer_node, configured_tracer),
+        traced_node(
+            "final_answer",
+            create_final_answer_node(configured_synthesizer),
+            configured_tracer,
+        ),
     )
 
     graph.add_edge(START, "request_guardrails")
@@ -128,6 +135,7 @@ class AgentWorkflow:
         mcp_tools: LocalMcpTools | None = None,
         router_backend: RouterBackend = "deterministic",
         tracer: AgentTracer | None = None,
+        answer_synthesizer: AnswerSynthesizer | None = None,
     ) -> None:
         self.tracer = tracer or NoOpTracer()
         self.router_backend = router_backend
@@ -136,6 +144,7 @@ class AgentWorkflow:
             mcp_tools=mcp_tools,
             router_backend=router_backend,
             tracer=self.tracer,
+            answer_synthesizer=answer_synthesizer,
         )
 
     def invoke(self, request: AgentRequest) -> AgentResponse:
@@ -168,4 +177,5 @@ def create_agent_workflow(
         mcp_tools=mcp_tools,
         router_backend=configured_settings.router_backend,
         tracer=get_agent_tracer(configured_settings),
+        answer_synthesizer=create_answer_synthesizer(configured_settings),
     )

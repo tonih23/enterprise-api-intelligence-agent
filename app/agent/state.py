@@ -4,6 +4,7 @@ from typing import Annotated, Any, Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.llm.schemas import AnswerSynthesisStatus
 from app.mcp_server.schemas import ChangeRequestInput
 from app.rag.schemas import RetrievalMode, RetrievedChunk, SearchFilters
 
@@ -128,6 +129,9 @@ class AgentResponse(BaseModel):
     sources: list[SourceReference] = Field(default_factory=list)
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
     approval_status: ApprovalStatus = "not_required"
+    answer_synthesis: AnswerSynthesisStatus = Field(
+        default_factory=AnswerSynthesisStatus
+    )
 
 
 class AgentState(TypedDict):
@@ -144,6 +148,7 @@ class AgentState(TypedDict):
     guardrail_reason: str | None
     draft_answer: str | None
     answer_text: str | None
+    answer_synthesis: AnswerSynthesisStatus
 
 
 def initial_state(request: AgentRequest) -> AgentState:
@@ -161,6 +166,7 @@ def initial_state(request: AgentRequest) -> AgentState:
         guardrail_reason=None,
         draft_answer=None,
         answer_text=None,
+        answer_synthesis=AnswerSynthesisStatus(),
     )
 
 
@@ -176,4 +182,5 @@ def response_from_state(state: AgentState) -> AgentResponse:
         sources=state["sources"],
         tool_calls=state["tool_calls"],
         approval_status=state["approval_status"],
+        answer_synthesis=state["answer_synthesis"],
     )

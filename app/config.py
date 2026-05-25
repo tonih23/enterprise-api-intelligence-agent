@@ -10,6 +10,7 @@ Environment = Literal["local", "test", "staging", "production"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 EmbeddingBackend = Literal["sentence_transformers", "local_hashing"]
 RouterBackend = Literal["deterministic"]
+LlmProvider = Literal["none", "gemini"]
 
 
 class Settings(BaseSettings):
@@ -36,6 +37,8 @@ class Settings(BaseSettings):
     embedding_model_name: str = "BAAI/bge-large-en-v1.5"
     embedding_batch_size: int = Field(default=32, ge=1)
     router_backend: RouterBackend = "deterministic"
+    llm_provider: LlmProvider = "none"
+    llm_model: str = "gemini-2.5-flash"
     enable_tracing: bool = Field(default=False, validation_alias="ENABLE_TRACING")
     phoenix_collector_endpoint: str = Field(
         default="http://127.0.0.1:6006/v1/traces",

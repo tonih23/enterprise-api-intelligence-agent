@@ -1,8 +1,8 @@
 # Agent Orchestration
 
 This module contains the local LangGraph workflow for questions over the
-fictional API corpus. It does not invoke an external LLM or a real operational
-system.
+fictional API corpus. It never invokes a real operational system; optional
+Gemini use is restricted to final answer wording.
 
 ## Flow
 
@@ -18,14 +18,17 @@ system.
 5. `human_approval`: records a pending request and prevents execution of
    `create_change_request_mock`.
 6. `final_guardrails` and `final_answer`: require sufficient sourced evidence
-   for factual answers and produce deterministic output with route, sources,
-   tool calls, and approval status.
+   for factual answers and produce deterministic output by default, or optional
+   grounded Gemini wording, while preserving route, evidence, tool calls, and
+   approval status.
 
 `create_agent_workflow` reads
 `API_AGENT_ROUTER_BACKEND="deterministic"` to select the current routing
 implementation. A later LLM-backed router can implement the same router node
-contract and be selected through this configuration boundary; this module
-does not require a model key today.
+contract and be selected through this configuration boundary. Answer
+synthesis reads `API_AGENT_LLM_PROVIDER="none"` by default; `gemini` requires
+`GOOGLE_API_KEY` only when selected and falls back to deterministic output if
+unavailable.
 
 ## HTTP And Storage
 

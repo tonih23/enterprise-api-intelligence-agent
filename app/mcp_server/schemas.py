@@ -90,7 +90,7 @@ class MockChangeRequest(BaseModel):
     title: str
     description: str
     risk_level: RiskLevel
-    status: Literal["pending_human_approval"] = "pending_human_approval"
+    status: Literal["pending_human_approval", "approved"] = "pending_human_approval"
     synthetic: Literal[True] = True
     mock: Literal[True] = True
     requires_human_approval: Literal[True] = True

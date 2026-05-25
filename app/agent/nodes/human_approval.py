@@ -11,7 +11,11 @@ def human_approval_node(state: AgentState) -> dict[str, object]:
     if isinstance(tool_request, CreateChangeRequestToolRequest):
         arguments = tool_request.arguments.model_dump(mode="json")
     else:
-        arguments = {"request_summary": request.query}
+        arguments = {
+            "title": "Proposed synthetic API change request",
+            "description": request.query,
+            "risk_level": "medium",
+        }
 
     pending_call = ToolCallRecord(
         tool_name="create_change_request_mock",

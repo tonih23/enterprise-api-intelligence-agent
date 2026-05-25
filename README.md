@@ -20,6 +20,8 @@ use internal company data or call real APIs.
   approval-gated change requests.
 - Deterministic LangGraph orchestration for retrieval, MCP tool calls,
   clarification, and human approval gating.
+- Agent HTTP endpoints for chat, local session history, and simulated approval
+  of mock governed actions.
 - Pytest and Ruff configuration managed through `pyproject.toml`.
 
 The proposed end-to-end architecture and delivery sequence are documented in
@@ -237,6 +239,47 @@ interface so a configured LLM router can be added later. Module details are in
 [app/agent/README.md](app/agent/README.md), with the graph diagram in
 [docs/architecture.md](docs/architecture.md).
 
+## Agent API
+
+Submit a documentation question. Omitting `session_id` creates a local
+session; reuse the returned value for later turns:
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/chat \
+  -H "Content-Type: application/json" \
+  -d '{"user_message":"Which clinical trial operation needs approval?"}'
+```
+
+Use an explicit local command to select a read-only MCP tool:
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/chat \
+  -H "Content-Type: application/json" \
+  -d '{"user_message":"Get API details for hcp_search_api","session_id":"demo-session"}'
+```
+
+A risky mock request is held pending approval and returns an `approval_id`
+without executing the tool:
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/chat \
+  -H "Content-Type: application/json" \
+  -d '{"user_message":"Create a change request for a synthetic API schema update.","session_id":"demo-session"}'
+```
+
+Approve that returned identifier to receive an approved mock object. This
+does not write to any external change-management system:
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/approve/approval_REPLACE_WITH_RETURNED_ID
+curl http://127.0.0.1:8000/agent/sessions/demo-session
+```
+
+For this initial local implementation, session and approval metadata is held
+in memory behind a repository interface and resets when the API process
+restarts. This keeps local execution simple while preserving a clean boundary
+for a future Postgres-backed repository.
+
 ## Configuration
 
 Configuration is read from environment variables or a local `.env` file.
@@ -278,8 +321,7 @@ docker compose --env-file .env.example config --quiet
 
 ## Planned Modules
 
-Future phases introduce an HTTP surface for the agent workflow, persistence of
-operational metadata in Postgres, and Phoenix tracing and evaluation
-instrumentation. Answer generation can later use a configured model while
-preserving the deterministic approval boundary. All corpus content and
-examples will remain synthetic.
+Future phases introduce durable Postgres implementation of the agent
+repository and Phoenix tracing and evaluation instrumentation. Answer
+generation can later use a configured model while preserving the deterministic
+approval boundary. All corpus content and examples will remain synthetic.

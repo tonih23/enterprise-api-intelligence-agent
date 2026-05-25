@@ -8,6 +8,8 @@ Agent.
 - `health.py` exposes the process health endpoint and response schema.
 - `rag/retriever.py` exposes `POST /rag/search` for keyword, vector, and
   hybrid retrieval over previously ingested synthetic documentation.
+- `agent/api.py` exposes chat, local session history, and simulated approval
+  endpoints backed by the deterministic LangGraph workflow.
 
 Run the API from the repository root with:
 
@@ -16,6 +18,6 @@ uv run uvicorn app.main:app --reload
 ```
 
 The `/health` endpoint currently reports application process readiness and
-configuration identity only. Health checks for future services such as
-OpenSearch or Postgres should be added when application readiness depends on
-those integrations.
+configuration identity only. Agent session and approval metadata currently
+uses an in-memory repository boundary; a future Postgres adapter can supply
+durability without changing endpoint contracts.

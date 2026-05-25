@@ -41,7 +41,8 @@ flowchart LR
 | OpenSearch | Search indexes for documents, chunks, metadata, embeddings, and keyword fields | Search store, not transactional system of record |
 | MCP server | Exposes controlled tools such as API lookup and proposed governed actions | Tool contracts are independent of model provider |
 | Approval service | Suspends sensitive actions until an authorized human approves or rejects | No sensitive execution before approval |
-| Postgres | Conversation metadata, tool/audit events, approval status, and evaluation results | Durable operational record |
+| Agent repository | Conversation turns and pending mock approvals; currently in-memory for local use | Protocol boundary for a later Postgres adapter |
+| Postgres | Planned durable conversation metadata, tool/audit events, approval status, and evaluation results | Durable operational record after adapter implementation |
 | Phoenix | Trace visualization, retrieval and response evaluation, experiment comparison | Observability platform, not source of business records |
 | Docker Compose | Reproducible local development services and dependency wiring | Development and demonstration deployment baseline |
 
@@ -57,9 +58,12 @@ flowchart LR
 5. For MCP tool requests, the workflow invokes only permitted tools and records inputs and results.
 6. If a tool represents a sensitive action, LangGraph creates a pending
    approval record rather than invoking the tool.
-7. Resuming approved actions through an authenticated approval endpoint is a
-   later extension; the current local graph stops safely at the pending state.
-8. Postgres captures durable metadata and evaluation results; Phoenix captures traces and evaluation signals.
+7. `POST /agent/approve/{approval_id}` simulates approval and invokes only the
+   local mock action, returning an object that explicitly creates no external
+   record.
+8. The current HTTP layer stores session and approval metadata in an in-memory
+   repository implementation; a Postgres adapter and Phoenix traces remain
+   planned operational integrations.
 
 ## Implemented Graph Flow
 
@@ -119,7 +123,7 @@ Quality cannot be judged only by a successful HTTP response. Phoenix tracing mak
 | Knowledge grounding | Hybrid retrieval over versioned synthetic API artifacts with citations |
 | Interoperable capabilities | MCP tools with explicit contracts and risk metadata |
 | Governance and separation of duties | Human approval gate for sensitive tools |
-| Auditability | Durable conversation, tool, and approval events in Postgres |
+| Auditability | Repository protocol for conversation and approval events, designed for Postgres durability |
 | Operational visibility | Phoenix traces and evaluation datasets |
 | Change management | Versioned prompts, schemas, corpora, and evaluation runs |
 | Secure configuration | Environment variables and documented local configuration |

@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 
+from app.agent.api import router as agent_router
 from app.config import Settings, get_settings
 from app.health import router as health_router
 from app.rag.retriever import router as rag_router
@@ -22,6 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.include_router(health_router)
     application.include_router(rag_router)
+    application.include_router(agent_router)
 
     if settings is not None:
 

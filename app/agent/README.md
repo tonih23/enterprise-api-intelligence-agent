@@ -23,3 +23,17 @@ system.
 implementation. A later LLM-backed router can implement the same router node
 contract and be selected through this configuration boundary; this module
 does not require a model key today.
+
+## HTTP And Storage
+
+`app.agent.api` exposes `POST /agent/chat`, `GET /agent/sessions/{session_id}`,
+and `POST /agent/approve/{approval_id}`. Chat requests accept only a user
+message and optional session identifier; explicit commands such as
+`Get API details for hcp_search_api` are mapped to local read-only MCP tools.
+
+`repository.py` defines the session and approval persistence boundary. The
+initial application uses `InMemoryAgentRepository` so local demos and tests
+have no database bootstrap requirement. It records basic session metadata and
+mock approval outcomes only for the application process lifetime. A Postgres
+adapter can implement the same protocol when durable operational persistence
+and migrations are added.

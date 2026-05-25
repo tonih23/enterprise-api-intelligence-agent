@@ -8,6 +8,7 @@ from app.config import RouterBackend
 RouterNode = Callable[[AgentState], dict[str, object]]
 SENSITIVE_INTENTS = (
     "create change request",
+    "create a change request",
     "open a change request",
     "submit a change request",
 )

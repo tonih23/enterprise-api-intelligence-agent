@@ -1,211 +1,81 @@
-# Enterprise API Intelligence Agent: Project Plan
+# Project Plan
 
 ## Objective
 
-Build a production-style, locally runnable reference application that answers questions about synthetic API documentation, invokes MCP tools through a governed LangGraph workflow, requires human approval for sensitive actions, and exposes operational evidence through tracing and evaluation.
+Build an enterprise-style portfolio PoC that answers questions over synthetic
+API documentation, exposes controlled local MCP-style tools, gates mock change
+actions through approval, and makes behavior inspectable through tracing and
+evaluation.
 
-The initial FastAPI and local-infrastructure foundation is implemented, along
-with the first synthetic documentation corpus and a deterministic local
-evaluation baseline described below.
+## Current Scope
 
-## Target Outcomes
-
-- FastAPI endpoints for questions, workflow status, approvals, health, and evaluation triggers.
-- LangGraph orchestration for retrieval, tool invocation, approval interruption, and response generation.
-- MCP server with well-defined read-only and approval-required synthetic API tools.
-- OpenSearch hybrid retrieval over fake API documentation artifacts with citations.
-- Postgres records for conversations, traces of governed actions, approvals, and evaluation results.
-- Phoenix instrumentation and a small repeatable evaluation dataset.
-- Docker Compose development environment, tests, configuration documentation, and module READMEs.
-
-## Proposed Repository Shape
-
-```text
-app/                    FastAPI entrypoint and API routes
-agent/                  LangGraph state, nodes, policies, and prompts
-retrieval/              Ingestion, chunking, embeddings, hybrid search
-mcp_server/             MCP tools and tool policy metadata
-persistence/            Postgres models and repositories
-observability/          Phoenix tracing and evaluation integration
-data/                   Synthetic docs, OpenAPI specs, Postman collections
-evals/                  Evaluation datasets and runners
-tests/                  Unit, integration, and API tests
-docs/                   Architecture, operating, and design documentation
-docker-compose.yml      Local service topology
-.env.example            Safe environment variable template
-```
-
-Every major module should include a short README describing responsibility, interfaces, configuration, and test commands.
+| Capability | Status |
+| --- | --- |
+| FastAPI endpoints | Implemented: health, RAG search, agent chat, session history, simulated approval |
+| Hybrid retrieval | Implemented: OpenSearch BM25, vector search, metadata filters, reciprocal-rank fusion |
+| Embeddings | Implemented: `local_hashing` offline fallback and configurable `BAAI/bge-large-en-v1.5` semantic backend |
+| MCP-style tools | Implemented: catalogue search, API details, local spec validation, mock change request |
+| LangGraph workflow | Implemented: deterministic routing, retrieval, tools, approval, clarification, guardrails |
+| Observability | Implemented: optional local Phoenix/OpenTelemetry tracing |
+| Evaluation | Implemented: 20-case offline synthetic baseline with local JSON results |
+| Persistence | Partial: in-memory session/approval repository; Postgres application adapter is future work |
+| Production security | Not implemented: authentication, authorization, tenant isolation, and governed external integrations |
 
 ## Synthetic Dataset
 
-The initial corpus uses a fictional Atlas Health Services sandbox scenario for
-realistic retrieval, governance, and interview demonstration flows. It does
-not represent a real organization or contain real company, healthcare
-professional, patient, clinical trial, incident, or credential information.
+The checked-in corpus describes a fictional Atlas Health Services sandbox
+scenario for retrieval and interview demonstrations. It does not represent a
+real organization or contain real company, healthcare professional, patient,
+trial, incident, or credential data.
 
-| Artifact | Retrieval or evaluation purpose |
+| Artifact | Purpose |
 | --- | --- |
-| `data/docs/fake_mulesoft_api_catalogue.md` | Catalogue lookup, endpoint discovery, scope questions, and approval classification |
-| `data/api_specs/hcp_search_api.openapi.yaml` | Exact HCP search paths, schemas, errors, and read-only policy examples |
-| `data/api_specs/clinical_trials_api.openapi.yaml` | Trial discovery operations and an explicit approval-required action |
-| `data/api_specs/atlas_api_demo.postman_collection.json` | Example read requests and a governed write request with runtime token placeholder |
-| `data/docs/api_governance_runbook.md` | Registration, classification, and human approval policy retrieval |
-| `data/docs/incident_response_runbook.md` | Incident triage and policy-bypass response retrieval |
-| `data/docs/teams_bot_architecture_notes.md` | Channel integration, grounded answers, and approval-card architecture |
+| `data/docs/fake_mulesoft_api_catalogue.md` | API discovery, scopes, and approval classification |
+| `data/api_specs/hcp_search_api.openapi.yaml` | Read-only endpoint and schema lookup |
+| `data/api_specs/clinical_trials_api.openapi.yaml` | Trial operations and a mock approval-required action |
+| `data/api_specs/atlas_api_demo.postman_collection.json` | Example calls with runtime token placeholder |
+| `data/docs/api_governance_runbook.md` | Governance and human approval guidance |
+| `data/docs/incident_response_runbook.md` | Synthetic incident response guidance |
+| `data/docs/teams_bot_architecture_notes.md` | Fictional channel integration design notes |
 
-All artifacts provide normalized metadata fields: `domain`, `owner`,
-`data_classification`, `system`, `api_name`, and `version`. Markdown files use
-YAML front matter; OpenAPI files use `info.x-agent-metadata`; and the Postman
-collection uses `x-agent-metadata`. Reserved `.test` hostnames and invented
-`*-SYN-*` identifiers make the synthetic boundary explicit.
+Each artifact provides `domain`, `owner`, `data_classification`, `system`,
+`api_name`, and `version` metadata plus `synthetic: true`. Hosts use reserved
+`.test` names and identifiers are invented.
 
-## Delivery Phases
+## Delivery Priorities
 
-### Phase 0: Foundation And Conventions
+### Delivered Local Vertical Slice
 
-Deliverables:
+- Ingest synthetic content into OpenSearch with an offline-safe default.
+- Retrieve evidence through HTTP and the agent workflow.
+- Execute read-only local tools and hold a mock change request for approval.
+- Trace workflow metadata optionally and run deterministic regression evals.
+- Keep tests independent of model downloads and external services.
 
-- Python 3.11 project packaging, dependency groups, `ruff`, `pytest`, optional `mypy`, and environment settings.
-- `.env.example`, top-level README, module skeletons, and Docker Compose service definitions.
-- CI-friendly commands for linting and tests.
+### Next Production-Oriented Increments
 
-Validation:
+- Add a Postgres repository adapter for sessions, approvals, audit events, and
+  evaluation results.
+- Add authentication, authorization, tenant isolation, rate limiting, and
+  secrets management.
+- Integrate an approved approval workflow and approved embedding/model
+  service.
+- Add CI/CD controls, monitoring, security review, and model-governance
+  processes.
 
-- Configuration tests confirm required settings fail clearly and no credentials are embedded.
-- Compose configuration validates successfully.
+Deployment alternatives and the production gap are described in
+[production_readiness.md](production_readiness.md).
 
-### Phase 1: Synthetic Documentation Corpus
+## Verification Strategy
 
-Deliverables:
-
-- Invented API product documentation, fake OpenAPI specs, and a fake Postman collection.
-- Corpus metadata conventions for API, version, document type, endpoint, and risk category.
-- Ingestion fixtures suitable for deterministic tests.
-
-Validation:
-
-- Schema/fixture tests validate synthetic specifications and stable identifiers.
-- Documentation states clearly that all APIs and examples are fictional.
-
-### Phase 2: Hybrid Retrieval
-
-Deliverables:
-
-- Chunking and metadata extraction pipeline.
-- OpenSearch lexical and vector index mappings.
-- Hybrid search service with score fusion, filters, and cited retrieval output.
-
-Validation:
-
-- Unit tests cover chunking, metadata, fusion, and citation construction.
-- Integration tests verify retrieval of exact endpoint terms and semantic questions from the synthetic corpus.
-
-### Phase 3: MCP Tool Server
-
-Deliverables:
-
-- MCP server exposing documentation lookup tools and synthetic action-proposal tools.
-- Tool metadata defining read-only versus approval-required behavior.
-- Structured input and output schemas with audit-friendly error handling.
-
-Validation:
-
-- Contract tests cover schemas, tool discovery, read-only invocation, and rejection of unsafe inputs.
-
-### Phase 4: LangGraph Orchestration And Approval
-
-Deliverables:
-
-- Typed workflow state and nodes for routing, retrieving, responding, calling tools, awaiting approval, resuming, and rejecting.
-- Policy enforcement that sensitive tools cannot execute without an approval record.
-- Model/provider integration configured through environment variables.
-
-Validation:
-
-- Graph tests cover answer, tool, approval, rejection, retry, and failure paths.
-- Policy tests prove sensitive execution cannot bypass the approval node.
-
-### Phase 5: FastAPI And Persistence
-
-Deliverables:
-
-- HTTP APIs for queries, conversations, pending approvals, approval decisions, and service readiness.
-- Postgres persistence for conversation metadata, tool events, approval decisions, and evaluation runs.
-- Correlation IDs, validation, consistent error responses, and redaction rules.
-
-Validation:
-
-- API tests validate status codes, schemas, approval lifecycle, and error cases.
-- Repository integration tests validate durable workflow and audit state.
-
-### Phase 6: Observability And Evaluation
-
-Deliverables:
-
-- Phoenix/OpenTelemetry tracing for agent graph nodes, retrieval, and MCP tool
-  and approval behavior is implemented as an optional local capability.
-- A 20-question synthetic evaluation set with expected sources, tools, and
-  policy outcomes is implemented.
-- The initial runner writes local JSON metrics for retrieval evidence,
-  grounded answers, tool correctness, and approval compliance; Postgres-backed
-  persistence remains a later durable adapter.
-
-Validation:
-
-- Tests confirm trace instrumentation is emitted without leaking secrets.
-- Evaluation smoke runs produce stored and inspectable results.
-
-### Phase 7: Local Operations And Documentation
-
-Deliverables:
-
-- Complete Docker Compose workflow for API, MCP, OpenSearch, Postgres, and Phoenix.
-- Setup, ingestion, demo, troubleshooting, architecture, and security documentation.
-- Module READMEs and example HTTP flows for both normal questions and approval-required actions.
-
-Validation:
-
-- Fresh-start smoke test brings up services, ingests synthetic data, answers a question with citations, and completes an approval flow.
-- Full lint and test suite passes.
-
-## Testing Strategy
-
-| Test level | Primary purpose |
+| Check | Purpose |
 | --- | --- |
-| Unit | Chunking, ranking/fusion, state transitions, policy decisions, schemas, redaction |
-| Contract | MCP tool schemas and stable structured responses |
-| Integration | OpenSearch retrieval, Postgres persistence, Phoenix instrumentation boundaries |
-| API | FastAPI request/response and approval lifecycle behavior |
-| Evaluation | Retrieval relevance, groundedness, tool selection, and policy compliance on synthetic cases |
-| Smoke | Docker Compose end-to-end demonstration flow |
+| Unit/API tests | Schemas, routing, tools, guardrails, approval, and HTTP behavior |
+| Corpus tests | Synthetic labeling, metadata, reserved hosts, and approval flags |
+| Offline evaluations | Stable route, source, tool, approval, and groundedness regression signals |
+| Ruff | Consistent Python formatting and static lint checks |
+| Docker Compose smoke run | Local API, OpenSearch, Phoenix, and Postgres wiring |
 
-Tests should avoid network-dependent production systems and use deterministic synthetic fixtures wherever possible.
-
-## Suggested Milestones
-
-| Milestone | Demonstrable result | Phases |
-| --- | --- | --- |
-| Searchable knowledge base | A cited answer from synthetic API documentation | 0-2 |
-| Governed agent workflow | An MCP action pauses for approval before execution | 3-5 |
-| Operable reference system | Traceable, evaluated, documented Docker Compose demo | 6-7 |
-
-## Risks And Mitigations
-
-| Risk | Mitigation |
-| --- | --- |
-| Retrieval appears accurate but answers are unsupported | Require citations and evaluate source relevance and groundedness |
-| Tools are invoked without adequate control | Encode risk metadata and enforce approval in workflow and tests |
-| Local stack becomes difficult to run | Start with minimal services, health checks, fixtures, and documented commands |
-| Evaluation is subjective or too late | Define synthetic expected cases before expanding agent behavior |
-| Sensitive configuration enters source control | Use environment settings, `.env.example`, redaction, and secret-focused reviews |
-
-## Definition Of Done
-
-- All content and examples remain synthetic and are presented as such.
-- The service answers documented questions with cited retrieved evidence.
-- MCP tools have validated contracts and sensitive actions require recorded human approval.
-- Conversation, approval, and evaluation metadata are stored in Postgres.
-- Phoenix exposes trace and evaluation evidence for key workflows.
-- Docker Compose supports a documented local demonstration.
-- Tests, linting, and documentation are current and passing for implemented capabilities.
+Tests and offline evaluations avoid external APIs, real systems, and model
+downloads. Semantic BGE retrieval is an opt-in local demonstration or a
+deployment concern for an approved hosted model or embedding endpoint.

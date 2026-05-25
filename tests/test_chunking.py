@@ -1,5 +1,6 @@
 """Tests for corpus loading, metadata extraction, and chunk creation."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,37 @@ def test_markdown_front_matter_is_not_added_to_searchable_text() -> None:
 
     assert document.text.startswith("# Fictional MuleSoft API Catalogue")
     assert 'document_id: "catalogue-doc-001"' not in document.text
+
+
+def test_load_documents_supports_json_openapi_contracts(tmp_path: Path) -> None:
+    specs_dir = tmp_path / "api_specs"
+    specs_dir.mkdir()
+    (specs_dir / "sample.openapi.json").write_text(
+        json.dumps(
+            {
+                "openapi": "3.1.0",
+                "info": {
+                    "x-agent-metadata": {
+                        "synthetic": True,
+                        "domain": "testing",
+                        "owner": "fictional_owner",
+                        "data_classification": "synthetic_internal",
+                        "system": "synthetic_system",
+                        "api_name": "sample_api",
+                        "version": "1.0.0",
+                    }
+                },
+                "paths": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    documents = load_documents(tmp_path)
+
+    assert len(documents) == 1
+    assert documents[0].metadata["source_type"] == "openapi"
+    assert documents[0].metadata["api_name"] == "sample_api"
 
 
 def test_chunk_document_preserves_metadata_source_path_and_stable_ids() -> None:

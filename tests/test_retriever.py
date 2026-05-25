@@ -1,5 +1,6 @@
 """Tests for keyword, vector, hybrid, and HTTP retrieval behavior."""
 
+from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -162,3 +163,43 @@ def test_rag_search_endpoint_returns_typed_retrieval_results() -> None:
     assert response.json()["mode"] == "hybrid"
     assert response.json()["results"][0]["chunk_id"] == "chunk-1"
     assert response.json()["results"][0]["retrieval_mode"] == "hybrid"
+
+
+def test_rag_search_endpoint_reports_embedding_backend_failure() -> None:
+    app = create_app(Settings(environment="test", embedding_backend="local_hashing"))
+
+    class UnavailableRetriever:
+        def search(self, request: SearchRequest) -> list[RetrievedChunk]:
+            raise OSError("embedding backend unavailable")
+
+    app.dependency_overrides[get_retriever] = UnavailableRetriever
+    with TestClient(app) as client:
+        response = client.post(
+            "/rag/search",
+            json={"query": "Which operation needs approval?", "mode": "hybrid"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Retrieval service is unavailable."
+
+
+def test_rag_search_reports_missing_local_embedding_model_without_loading(
+    tmp_path: Path,
+) -> None:
+    app = create_app(
+        Settings(
+            _env_file=None,
+            environment="test",
+            embedding_backend="sentence_transformers",
+            embedding_model_name=str(tmp_path / "missing-model"),
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/rag/search",
+            json={"query": "exact endpoint", "mode": "keyword"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Retrieval service is unavailable."

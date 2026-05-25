@@ -59,8 +59,14 @@ def _load_markdown(path: Path, data_root: Path) -> SourceDocument:
     if not raw_text.startswith("---"):
         raise ValueError(f"{path} does not include YAML front matter")
 
-    _, front_matter, body = raw_text.split("---", maxsplit=2)
-    metadata = yaml.safe_load(front_matter)
+    parts = raw_text.split("---", maxsplit=2)
+    if len(parts) != 3:
+        raise ValueError(f"{path} does not include complete YAML front matter")
+    _, front_matter, body = parts
+    try:
+        metadata = yaml.safe_load(front_matter)
+    except yaml.YAMLError as error:
+        raise ValueError(f"{path} contains invalid YAML front matter") from error
     if not isinstance(metadata, dict):
         raise ValueError(f"{path} contains invalid YAML front matter")
     metadata["source_type"] = "markdown"
@@ -74,7 +80,21 @@ def _load_markdown(path: Path, data_root: Path) -> SourceDocument:
 
 def _load_openapi(path: Path, data_root: Path) -> SourceDocument:
     raw_text = path.read_text(encoding="utf-8")
-    specification = yaml.safe_load(raw_text)
+    try:
+        specification = yaml.safe_load(raw_text)
+    except yaml.YAMLError as error:
+        raise ValueError(f"{path} contains invalid OpenAPI YAML") from error
+    if not isinstance(specification, dict):
+        raise ValueError(f"{path} does not contain an OpenAPI object")
+    return _openapi_document(path, data_root, raw_text, specification)
+
+
+def _openapi_document(
+    path: Path,
+    data_root: Path,
+    raw_text: str,
+    specification: dict[str, Any],
+) -> SourceDocument:
     try:
         metadata = dict(specification["info"]["x-agent-metadata"])
     except (KeyError, TypeError) as error:
@@ -88,11 +108,18 @@ def _load_openapi(path: Path, data_root: Path) -> SourceDocument:
     )
 
 
-def _load_postman(path: Path, data_root: Path) -> SourceDocument:
+def _load_json(path: Path, data_root: Path) -> SourceDocument:
     raw_text = path.read_text(encoding="utf-8")
-    collection = json.loads(raw_text)
     try:
-        metadata = dict(collection["x-agent-metadata"])
+        document = json.loads(raw_text)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{path} contains invalid JSON") from error
+    if not isinstance(document, dict):
+        raise ValueError(f"{path} does not contain an object")
+    if "openapi" in document:
+        return _openapi_document(path, data_root, raw_text, document)
+    try:
+        metadata = dict(document["x-agent-metadata"])
     except (KeyError, TypeError) as error:
         raise ValueError(f"{path} has no x-agent-metadata mapping") from error
     metadata["source_type"] = "postman_collection"
@@ -111,7 +138,7 @@ def load_documents(data_root: Path) -> list[SourceDocument]:
         ".md": _load_markdown,
         ".yaml": _load_openapi,
         ".yml": _load_openapi,
-        ".json": _load_postman,
+        ".json": _load_json,
     }
     files = sorted((data_root / "docs").glob("*.md"))
     files.extend(sorted((data_root / "api_specs").glob("*")))

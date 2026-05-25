@@ -179,6 +179,24 @@ def test_unknown_session_returns_not_found() -> None:
     assert response.status_code == 404
 
 
+def test_chat_reports_retrieval_backend_failure_as_service_unavailable() -> None:
+    repository = InMemoryAgentRepository()
+    app = create_app(Settings(environment="test", embedding_backend="local_hashing"))
+
+    class UnavailableWorkflow:
+        def invoke(self, request):
+            raise OSError("embedding backend unavailable")
+
+    app.dependency_overrides[get_agent_repository] = lambda: repository
+    app.dependency_overrides[get_agent_workflow] = UnavailableWorkflow
+
+    with TestClient(app) as client:
+        response = client.post("/agent/chat", json={"user_message": "Find an API."})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Retrieval service is unavailable."
+
+
 def test_approval_endpoint_traces_decision_and_approved_mock_call() -> None:
     client, _ = build_test_client()
     tracer = RecordingTracer()

@@ -22,6 +22,7 @@ from app.rag.schemas import (
 )
 
 RRF_RANK_CONSTANT = 60
+RETRIEVAL_UNAVAILABLE_DETAIL = "Retrieval service is unavailable."
 router = APIRouter(prefix="/rag", tags=["rag"])
 
 
@@ -171,11 +172,17 @@ def get_retriever(
         password=settings.opensearch_password,
         verify_certs=settings.opensearch_verify_certs,
     )
-    embedder = _cached_embedder(
-        settings.embedding_backend,
-        settings.embedding_model_name,
-        settings.embedding_batch_size,
-    )
+    try:
+        embedder = _cached_embedder(
+            settings.embedding_backend,
+            settings.embedding_model_name,
+            settings.embedding_batch_size,
+        )
+    except (OSError, ValueError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=RETRIEVAL_UNAVAILABLE_DETAIL,
+        ) from error
     return RagRetriever(client, settings.opensearch_index_name, embedder)
 
 
@@ -192,9 +199,9 @@ def search_documents(
 
     try:
         results = retriever.search(request)
-    except OpenSearchException as error:
+    except (OpenSearchException, OSError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Document search service is unavailable.",
+            detail=RETRIEVAL_UNAVAILABLE_DETAIL,
         ) from error
     return SearchResponse(query=request.query, mode=request.mode, results=results)

@@ -41,7 +41,7 @@ flowchart LR
     Tools --> Gate["Approval gate"]
     Gate --> Card["Approval card in Teams"]
     Graph --> Trace["Phoenix trace"]
-    API --> Store["Postgres metadata"]
+    API --> Store["Proposed Postgres metadata"]
 ```
 
 ## Message Handling
@@ -73,10 +73,11 @@ action links.
 
 ## Operational Notes
 
-- Postgres stores conversation references, approval state, and evaluation
-  results, using invented test identities only.
-- Phoenix traces retrieval, graph decisions, tool-selection policy, and
-  latency; authorization headers are redacted.
+- A proposed deployment would store conversation references, approval state,
+  and evaluation results in Postgres, using invented test identities only.
+- A proposed deployment would trace retrieval, graph decisions,
+  tool-selection policy, and latency in Phoenix while excluding authorization
+  headers.
 - OpenSearch indexes metadata including `domain`, `owner`,
   `data_classification`, `system`, `api_name`, and `version`.
 - The bot should respond with a refusal and escalation path for requests to

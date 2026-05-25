@@ -82,8 +82,7 @@ def test_destructive_action_is_routed_to_approval_without_execution() -> None:
     assert response.approval_status == "pending_human_approval"
     assert response.tool_calls[0].status == "blocked_pending_approval"
     assert (
-        "No action has been executed in any real company system"
-        in response.answer_text
+        "No action has been executed in any real company system" in response.answer_text
     )
 
 
@@ -103,12 +102,18 @@ def test_sensitive_tool_policy_requires_present_human_approval() -> None:
     state_update = tool_guardrail_node(initial_state(request))
 
     assert state_update["guardrail_status"] == "approval_required"
-    assert sensitive_tool_is_allowed(
-        "create_change_request_mock", human_approval_present=False
-    ) is False
-    assert sensitive_tool_is_allowed(
-        "create_change_request_mock", human_approval_present=True
-    ) is True
+    assert (
+        sensitive_tool_is_allowed(
+            "create_change_request_mock", human_approval_present=False
+        )
+        is False
+    )
+    assert (
+        sensitive_tool_is_allowed(
+            "create_change_request_mock", human_approval_present=True
+        )
+        is True
+    )
 
 
 def test_weak_retrieval_prompts_for_clarification_instead_of_factual_answer() -> None:

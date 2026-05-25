@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     opensearch_username: str | None = None
     opensearch_password: SecretStr | None = None
     opensearch_verify_certs: bool = False
-    embedding_backend: EmbeddingBackend = "sentence_transformers"
+    embedding_backend: EmbeddingBackend = "local_hashing"
     embedding_model_name: str = "BAAI/bge-large-en-v1.5"
     embedding_batch_size: int = Field(default=32, ge=1)
     router_backend: RouterBackend = "deterministic"

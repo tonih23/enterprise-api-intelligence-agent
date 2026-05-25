@@ -62,9 +62,7 @@ def action_requires_approval(request: AgentRequest) -> bool:
     return CHANGE_ACTION.search(request.query) is not None
 
 
-def sensitive_tool_is_allowed(
-    tool_name: str, *, human_approval_present: bool
-) -> bool:
+def sensitive_tool_is_allowed(tool_name: str, *, human_approval_present: bool) -> bool:
     """Permit sensitive mock execution only after an approval decision."""
 
     return tool_name not in SENSITIVE_TOOL_NAMES or human_approval_present
@@ -116,11 +114,8 @@ def tool_guardrail_node(state: AgentState) -> dict[str, object]:
     reason = restricted_reason(request)
     if reason is not None:
         return request_guardrail_node(state)
-    if (
-        request.requested_tool is not None
-        and not sensitive_tool_is_allowed(
-            request.requested_tool.tool_name, human_approval_present=False
-        )
+    if request.requested_tool is not None and not sensitive_tool_is_allowed(
+        request.requested_tool.tool_name, human_approval_present=False
     ):
         return {
             "route": "require_human_approval",
@@ -168,10 +163,9 @@ def final_guardrail_node(state: AgentState) -> dict[str, object]:
                 "I could not find a sourced match in the synthetic demo catalogue. "
                 "Please specify a documented fictional API or topic."
             )
-        if (
-            isinstance(state["request"].requested_tool, GetApiDetailsToolRequest)
-            and any(call.status == "failed" for call in state["tool_calls"])
-        ):
+        if isinstance(
+            state["request"].requested_tool, GetApiDetailsToolRequest
+        ) and any(call.status == "failed" for call in state["tool_calls"]):
             return _clarification(
                 "I cannot confirm that API name in the synthetic demo "
                 "specifications. Please name a documented fictional API."

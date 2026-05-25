@@ -4,7 +4,7 @@ The `app.rag` package prepares and retrieves the fictional API corpus.
 
 - `chunking.py` reads `data/docs` and `data/api_specs`, extracts normalized
   metadata, and produces deterministic overlapping chunks.
-- `embeddings.py` provides production-style semantic vectors through a lazily
+- `embeddings.py` provides real semantic vectors through a lazily
   loaded sentence-transformers model and deterministic no-network
   `local_hashing` vectors for development and CI smoke tests.
 - `opensearch_client.py` creates the OpenSearch k-NN mapping and bulk-indexes

@@ -20,6 +20,7 @@ from app.rag.embeddings import (
 def test_default_real_embedding_model_is_bge_large() -> None:
     settings = Settings(_env_file=None)
 
+    assert settings.embedding_backend == "local_hashing"
     assert settings.embedding_model_name == "BAAI/bge-large-en-v1.5"
 
 

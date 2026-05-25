@@ -67,7 +67,7 @@ The local container stack runs:
 | --- | --- | --- |
 | `api` | [http://127.0.0.1:8000](http://127.0.0.1:8000) | FastAPI application |
 | `postgres` | `127.0.0.1:5432` | Future conversation, audit, and evaluation persistence |
-| `opensearch` | [http://127.0.0.1:9200](http://127.0.0.1:9200) | Future hybrid retrieval index |
+| `opensearch` | [http://127.0.0.1:9200](http://127.0.0.1:9200) | Hybrid retrieval index |
 | `phoenix` | [http://127.0.0.1:6006](http://127.0.0.1:6006) | Trace and evaluation UI |
 
 Copy the environment template before starting services. Docker Compose reads
@@ -165,6 +165,45 @@ In an enterprise deployment, the semantic backend would normally be connected
 to an approved internal embedding endpoint or an internally hosted approved
 model rather than depending on ad hoc workstation downloads.
 
+## Document Search
+
+After ingesting documents, query them through `POST /rag/search`. Requests
+support `keyword`, `vector`, and `hybrid` modes plus optional exact filters for
+`domain`, `system`, `api_name`, and `data_classification`.
+
+Keyword/BM25 search is useful for exact endpoint paths, scopes, API names, and
+error codes:
+
+```bash
+curl -X POST http://127.0.0.1:8000/rag/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "POST /trial-interest-requests approval",
+    "top_k": 3,
+    "mode": "keyword",
+    "filters": {"api_name": "clinical_trials_api"}
+  }'
+```
+
+Hybrid search fuses BM25 candidates with vector candidates when a question
+mixes technical identifiers with broader intent:
+
+```bash
+curl -X POST http://127.0.0.1:8000/rag/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Which trial action needs a human review before submission?",
+    "top_k": 5,
+    "mode": "hybrid",
+    "filters": {"data_classification": "synthetic_internal"}
+  }'
+```
+
+Vector and hybrid modes must use the embedding backend and vector dimensions
+used to build the selected index. With the local template both use
+`local_hashing`; a BGE semantic index must be queried with
+`sentence_transformers` and its compatible index name.
+
 ## Configuration
 
 Configuration is read from environment variables or a local `.env` file.
@@ -206,6 +245,6 @@ docker compose --env-file .env.example config --quiet
 ## Planned Modules
 
 Future phases introduce LangGraph workflow orchestration, an MCP tool server,
-hybrid ranking and answer generation over the indexed fictional documentation,
-Postgres operational metadata integration, and Phoenix tracing and evaluation
-instrumentation. All corpus content and examples will remain synthetic.
+answer generation over retrieved fictional documentation, Postgres operational
+metadata integration, and Phoenix tracing and evaluation instrumentation. All
+corpus content and examples will remain synthetic.

@@ -122,16 +122,48 @@ guided walkthrough, see [docs/demo_script.md](docs/demo_script.md).
 
 ## Screenshots
 
-Public-safe screenshot placeholders are reserved under `assets/screenshots/`.
-Capture guidance and filenames are listed in
-[docs/screenshot_checklist.md](docs/screenshot_checklist.md).
+The captured views use synthetic/demo data and local mock actions only.
+Capture guidance is in [docs/screenshot_checklist.md](docs/screenshot_checklist.md).
 
-| Demo View | Placeholder Path |
-| --- | --- |
-| Streamlit home | `assets/screenshots/01-streamlit-home.png` |
-| Grounded RAG answer and sources | `assets/screenshots/02-rag-gemini-sources.png` |
-| Approval gate | `assets/screenshots/04-human-approval-pending.png` |
-| Phoenix trace | `assets/screenshots/06-phoenix-agent-trace.png` |
+**Streamlit demo UI**
+
+![Streamlit demo UI for the local synthetic-data agent](assets/screenshots/01-streamlit-home.png)
+
+**RAG answer with Gemini synthesis status**
+
+![Grounded RAG answer in Gemini-configured mode with transparent deterministic fallback](assets/screenshots/02-rag-gemini-answer.png)
+
+**Retrieved evidence / sources**
+
+![Retrieved evidence and source references supporting the RAG answer](assets/screenshots/02-rag-gemini-sources.png)
+
+**MCP OpenAPI validation**
+
+![MCP-style validation of the synthetic HCP Search OpenAPI specification](assets/screenshots/03-mcp-openapi-validation.png)
+
+**MCP validation details**
+
+![Expanded MCP tool result showing synthetic validation metadata](assets/screenshots/03-mcp-openapi-validation-details.png)
+
+**Human approval pending**
+
+![Pending human approval for a local mock change request](assets/screenshots/04-human-approval-pending.png)
+
+**Human approval approved result**
+
+![Approved mock change request result without external execution](assets/screenshots/04-human-approved.png)
+
+**Guardrail blocking secrets**
+
+![Guardrail refusal for a request for a client secret or API token](assets/screenshots/05-guardrail-secret-blocked.png)
+
+**Phoenix trace**
+
+![Phoenix local trace showing agent workflow spans and safe synthetic-demo metadata](assets/screenshots/06-phoenix-agent-trace.png)
+
+**FastAPI Swagger docs**
+
+![FastAPI Swagger documentation for the local agent API](assets/screenshots/07-fastapi-docs.png)
 
 ## Observability
 

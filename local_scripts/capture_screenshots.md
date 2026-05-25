@@ -64,21 +64,31 @@ Save as:
 
 `assets/screenshots/01-streamlit-home.png`
 
-### 2. Grounded RAG Answer And Sources
+### 2. RAG Answer With Gemini Synthesis Status
 
 In Streamlit, ask:
 
 `Which API should I use to search for HCP candidates?`
 
-Show the final answer, route/synthesis display, sources, and a relevant
-collapsed or expanded evidence panel. If Gemini is enabled locally, this
-image can show its synthesis mode and model name, but never its API key.
+Show the final answer and route/synthesis display. If Gemini is enabled
+locally, capture the displayed synthesis mode and model name, but never its
+API key. If the UI reports deterministic fallback, describe it as fallback
+rather than a Gemini-generated answer.
+
+Save as:
+
+`assets/screenshots/02-rag-gemini-answer.png`
+
+### 3. Retrieved Evidence / Sources
+
+Using the same RAG answer, scroll to the sources and retrieved evidence
+sections. Show the synthetic document paths and evidence panels.
 
 Save as:
 
 `assets/screenshots/02-rag-gemini-sources.png`
 
-### 3. MCP OpenAPI Validation
+### 4. MCP OpenAPI Validation
 
 In Streamlit, ask:
 
@@ -90,7 +100,16 @@ Save as:
 
 `assets/screenshots/03-mcp-openapi-validation.png`
 
-### 4. Human Approval Pending
+### 5. MCP Validation Details
+
+Using the validation result, expand the tool-call result to show its
+synthetic validation metadata and local spec path.
+
+Save as:
+
+`assets/screenshots/03-mcp-openapi-validation-details.png`
+
+### 6. Human Approval Pending
 
 In Streamlit, ask:
 
@@ -103,7 +122,16 @@ Save as:
 
 `assets/screenshots/04-human-approval-pending.png`
 
-### 5. Guardrail Refusal
+### 7. Human Approval Approved Result
+
+From the pending result, approve the mock action and show the local result
+stating that no external record was created.
+
+Save as:
+
+`assets/screenshots/04-human-approved.png`
+
+### 8. Guardrail Refusal
 
 In Streamlit, ask this illustrative request without entering any real value:
 
@@ -115,7 +143,7 @@ Save as:
 
 `assets/screenshots/05-guardrail-secret-blocked.png`
 
-### 6. Phoenix Trace
+### 9. Phoenix Trace
 
 Open `http://localhost:6006` after the preceding interactions. Select a safe
 `agent.run` trace and show child spans such as `router.decide`,
@@ -126,7 +154,7 @@ Save as:
 
 `assets/screenshots/06-phoenix-agent-trace.png`
 
-### 7. FastAPI Documentation
+### 10. FastAPI Documentation
 
 Open `http://127.0.0.1:8000/docs` and capture the endpoint list, including
 the RAG and agent routes. Do not include any request containing credentials.

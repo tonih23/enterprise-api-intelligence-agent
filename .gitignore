@@ -21,6 +21,7 @@ htmlcov/
 # Build output
 build/
 dist/
+artifacts/evals/
 
 # Local embedding model artifacts
 models/

@@ -24,6 +24,8 @@ use internal company data or call real APIs.
   of mock governed actions.
 - Optional Phoenix-compatible traces for agent routing, retrieval, tools,
   approval decisions, and final response formatting.
+- Deterministic synthetic evaluation suite for routes, evidence, tools,
+  approval gating, and basic groundedness.
 - Pytest and Ruff configuration managed through `pyproject.toml`.
 
 The proposed end-to-end architecture and delivery sequence are documented in
@@ -312,6 +314,27 @@ retrieved passages, or tool arguments. See
 [docs/observability.md](docs/observability.md) for the AgentOps and governance
 rationale.
 
+## Evaluation
+
+Run the 20-question synthetic regression baseline without OpenSearch, an
+embedding-model download, Postgres, or an external LLM:
+
+```bash
+uv run python -m app.evals.run_evals
+```
+
+The command executes the existing LangGraph workflow with an offline
+deterministic retriever over the checked-in fictional corpus, then writes a
+local result artifact to `artifacts/evals/latest.json`. It reports
+`route_accuracy`, `source_recall`, `tool_call_accuracy`,
+`approval_precision`, and heuristic `answer_groundedness`.
+
+This is a repeatable development baseline, not a production-quality benchmark.
+When `ENABLE_TRACING=true`, evaluated graph runs use the same optional local
+Phoenix trace path as agent API requests. Metric definitions and the future
+Postgres persistence design are documented in
+[docs/evaluation.md](docs/evaluation.md).
+
 ## Configuration
 
 Configuration is read from environment variables or a local `.env` file.
@@ -355,7 +378,7 @@ docker compose --env-file .env.example config --quiet
 
 ## Planned Modules
 
-Future phases introduce durable Postgres implementation of the agent
-repository and Phoenix-based evaluation instrumentation. Answer generation can
-later use a configured model while preserving the deterministic approval
-boundary. All corpus content and examples will remain synthetic.
+Future phases introduce durable Postgres implementations for the agent
+repository and evaluation-result storage. Answer generation and broader
+judging can later use configured models while preserving the deterministic
+approval boundary. All corpus content and examples will remain synthetic.

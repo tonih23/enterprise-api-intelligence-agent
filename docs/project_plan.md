@@ -5,7 +5,8 @@
 Build a production-style, locally runnable reference application that answers questions about synthetic API documentation, invokes MCP tools through a governed LangGraph workflow, requires human approval for sensitive actions, and exposes operational evidence through tracing and evaluation.
 
 The initial FastAPI and local-infrastructure foundation is implemented, along
-with the first synthetic documentation corpus described below.
+with the first synthetic documentation corpus and a deterministic local
+evaluation baseline described below.
 
 ## Target Outcomes
 
@@ -142,9 +143,13 @@ Validation:
 
 Deliverables:
 
-- Phoenix/OpenTelemetry tracing for API requests, graph nodes, retrieval, model calls, and MCP tools.
-- Synthetic evaluation questions with expected sources and expected policy outcomes.
-- Evaluation runner and persisted metrics for retrieval relevance, grounded answers, tool correctness, and approval compliance.
+- Phoenix/OpenTelemetry tracing for agent graph nodes, retrieval, and MCP tool
+  and approval behavior is implemented as an optional local capability.
+- A 20-question synthetic evaluation set with expected sources, tools, and
+  policy outcomes is implemented.
+- The initial runner writes local JSON metrics for retrieval evidence,
+  grounded answers, tool correctness, and approval compliance; Postgres-backed
+  persistence remains a later durable adapter.
 
 Validation:
 

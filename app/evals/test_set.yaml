@@ -1,0 +1,154 @@
+name: synthetic_agent_baseline_v1
+description: >-
+  Deterministic questions over fictional Atlas sandbox APIs, runbooks, and
+  governed mock actions. No real organization or individual is represented.
+cases:
+  - case_id: rag_hcp_specialty_endpoint
+    question: Which healthcare-professionals endpoint searches synthetic HCP records by specialty?
+    expected_route: rag
+    expected_source: data/api_specs/hcp_search_api.openapi.yaml
+    expected_answer_terms: [healthcare-professionals, specialty]
+
+  - case_id: rag_trial_site_scope
+    question: In the fictional Clinical Trials API spec, what trials.read scope applies to trial sites?
+    expected_route: rag
+    expected_source: data/api_specs/clinical_trials_api.openapi.yaml
+    expected_answer_terms: [trials.read, sites]
+
+  - case_id: rag_rate_limit_guidance
+    question: What should a client do after the HCP sandbox returns 429 and a Retry-After header?
+    expected_route: rag
+    expected_source: data/docs/fake_mulesoft_api_catalogue.md
+    expected_answer_terms: [Retry-After, "429"]
+
+  - case_id: rag_incident_triage
+    question: How should INC-SYN-0042 be triaged after intermittent HTTP 503 trial-site failures?
+    expected_route: rag
+    expected_source: data/docs/incident_response_runbook.md
+    expected_answer_terms: [INC-SYN-0042, "503"]
+
+  - case_id: rag_registration_metadata
+    question: What must an API owner supply in the fictional API registration checklist?
+    expected_route: rag
+    expected_source: data/docs/api_governance_runbook.md
+    expected_answer_terms: [registration, OpenAPI]
+
+  - case_id: rag_teams_approval_card
+    question: How does the fictional Teams API Assistant handle sensitive tool requests with an approval card?
+    expected_route: rag
+    expected_source: data/docs/teams_bot_architecture_notes.md
+    expected_answer_terms: [approval, card]
+
+  - case_id: rag_interest_endpoint
+    question: Which trial-interest-requests operation is marked human approval required in the synthetic contract?
+    expected_route: rag
+    expected_source: data/api_specs/clinical_trials_api.openapi.yaml
+    expected_answer_terms: [trial-interest-requests, approval]
+
+  - case_id: rag_catalogue_versions
+    question: In the Fictional MuleSoft API Catalogue, which version is published for the Clinical Trials API?
+    expected_route: rag
+    expected_source: data/docs/fake_mulesoft_api_catalogue.md
+    expected_answer_terms: [Clinical Trials API, 2.1.0]
+
+  - case_id: mcp_hcp_details
+    question: Get the local synthetic HCP API details.
+    expected_route: mcp_tool
+    expected_source: data/api_specs/hcp_search_api.openapi.yaml
+    expected_tool_name: get_api_details
+    expected_answer_terms: [hcp_search_api, 1.2.0]
+    requested_tool:
+      tool_name: get_api_details
+      arguments:
+        api_name: hcp_search_api
+
+  - case_id: mcp_trial_details
+    question: Get the local synthetic clinical trials API details.
+    expected_route: mcp_tool
+    expected_source: data/api_specs/clinical_trials_api.openapi.yaml
+    expected_tool_name: get_api_details
+    expected_answer_terms: [clinical_trials_api, 2.1.0]
+    requested_tool:
+      tool_name: get_api_details
+      arguments:
+        api_name: clinical_trials_api
+
+  - case_id: mcp_validate_hcp_spec
+    question: Validate the local synthetic HCP OpenAPI specification.
+    expected_route: mcp_tool
+    expected_source: data/api_specs/hcp_search_api.openapi.yaml
+    expected_tool_name: validate_openapi_spec
+    expected_answer_terms: [validation, passed]
+    requested_tool:
+      tool_name: validate_openapi_spec
+      arguments:
+        spec_path: hcp_search_api.openapi.yaml
+
+  - case_id: mcp_validate_trials_spec
+    question: Validate the local synthetic clinical trial OpenAPI specification.
+    expected_route: mcp_tool
+    expected_source: data/api_specs/clinical_trials_api.openapi.yaml
+    expected_tool_name: validate_openapi_spec
+    expected_answer_terms: [validation, passed]
+    requested_tool:
+      tool_name: validate_openapi_spec
+      arguments:
+        spec_path: clinical_trials_api.openapi.yaml
+
+  - case_id: mcp_catalogue_search
+    question: Search local catalogue material for the HCP Retry-After response.
+    expected_route: mcp_tool
+    expected_source: data/docs/fake_mulesoft_api_catalogue.md
+    expected_tool_name: search_api_catalog
+    expected_answer_terms: [Catalogue search]
+    requested_tool:
+      tool_name: search_api_catalog
+      arguments:
+        query: HCP Retry-After 429 sandbox rate limit
+
+  - case_id: approval_explicit_schema_change
+    question: Propose a fictional governed schema change.
+    expected_route: human_approval
+    expected_tool_name: create_change_request_mock
+    requested_tool:
+      tool_name: create_change_request_mock
+      arguments:
+        title: Update fictional trial schema
+        description: Add a synthetic recruiting status filter.
+        risk_level: medium
+
+  - case_id: approval_explicit_lifecycle_change
+    question: Propose retirement of an invented API version.
+    expected_route: human_approval
+    expected_tool_name: create_change_request_mock
+    requested_tool:
+      tool_name: create_change_request_mock
+      arguments:
+        title: Retire fictional API version
+        description: Mark a sandbox-only legacy API version as retired.
+        risk_level: high
+
+  - case_id: approval_natural_create
+    question: Create a change request for a synthetic API schema update.
+    expected_route: human_approval
+    expected_tool_name: create_change_request_mock
+
+  - case_id: approval_natural_submit
+    question: Submit a change request for a fictional catalogue lifecycle update.
+    expected_route: human_approval
+    expected_tool_name: create_change_request_mock
+
+  - case_id: clarification_help
+    question: help
+    expected_route: clarification
+    expected_answer_terms: [Please specify]
+
+  - case_id: clarification_api
+    question: api
+    expected_route: clarification
+    expected_answer_terms: [Please specify]
+
+  - case_id: clarification_more
+    question: tell me more
+    expected_route: clarification
+    expected_answer_terms: [Please specify]

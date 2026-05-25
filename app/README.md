@@ -12,6 +12,8 @@ Agent.
   endpoints backed by the deterministic LangGraph workflow.
 - `observability/phoenix.py` optionally exports workflow spans to local
   Phoenix over OTLP/HTTP without making tracing a request dependency.
+- `evals/run_evals.py` executes deterministic regression cases over local
+  synthetic artifacts and writes an ignored JSON result.
 
 Run the API from the repository root with:
 

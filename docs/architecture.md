@@ -48,19 +48,49 @@ flowchart LR
 ## Primary Request Flow
 
 1. A client submits a question to FastAPI with correlation and conversation context.
-2. LangGraph classifies the request and decides whether retrieval or a tool is needed.
+2. LangGraph applies deterministic routing and decides whether retrieval, a
+   local MCP tool, an approval gate, or clarification is needed.
 3. For documentation questions, the retrieval service obtains candidate passages from OpenSearch using lexical and vector search, merges and ranks results, and returns citations.
-4. The workflow generates an answer grounded in retrieved synthetic sources and records trace metadata.
+4. The initial workflow formats a deterministic evidence-based answer from
+   retrieved synthetic sources; a configured LLM answer generator can be
+   introduced later.
 5. For MCP tool requests, the workflow invokes only permitted tools and records inputs and results.
-6. If a tool represents a sensitive action, LangGraph creates a pending approval state rather than executing it.
-7. A human approval API call resumes the workflow for approved actions or closes it with a rejection outcome.
+6. If a tool represents a sensitive action, LangGraph creates a pending
+   approval record rather than invoking the tool.
+7. Resuming approved actions through an authenticated approval endpoint is a
+   later extension; the current local graph stops safely at the pending state.
 8. Postgres captures durable metadata and evaluation results; Phoenix captures traces and evaluation signals.
+
+## Implemented Graph Flow
+
+```mermaid
+flowchart TD
+    Start["AgentRequest"] --> Router["router<br/>deterministic rules"]
+    Router -->|answer_with_rag| RAG["rag<br/>hybrid retrieval"]
+    Router -->|call_mcp_tool| MCP["mcp<br/>local synthetic tools"]
+    Router -->|require_human_approval| Approval["human_approval<br/>record pending action"]
+    Router -->|ask_clarification| Final["final_answer"]
+    RAG --> Final
+    MCP --> Final
+    Approval --> Final
+    Final --> Output["AgentResponse<br/>answer, route, sources,<br/>tool calls, approval status"]
+```
+
+The router backend is selected with
+`API_AGENT_ROUTER_BACKEND="deterministic"`. The graph depends on the router
+node contract rather than on rule implementation details, leaving a clear
+configuration boundary for an LLM router in a later phase. This version does
+not require an LLM API key or make an external model call.
 
 ## Architecture Decisions
 
 ### Why LangGraph
 
-Agent workflows need explicit control over branching, retries, tool calls, and pauses for approval. LangGraph models these as stateful nodes and transitions, making the path inspectable and testable. It is better suited than an opaque prompt loop when an action may wait for a human decision or must preserve audit context across requests.
+Agent workflows need explicit control over branching, tool calls, and pauses
+for approval. LangGraph models these as typed state transitions, making each
+path inspectable and testable even before an LLM is introduced. This is better
+suited than an opaque prompt loop when an action must stop at a governance
+boundary or preserve audit context across requests.
 
 ### Why MCP
 

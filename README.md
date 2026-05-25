@@ -18,6 +18,8 @@ use internal company data or call real APIs.
 - Metadata-aware RAG ingestion for the fictional documentation corpus.
 - Local MCP tools for synthetic API lookup, contract validation, and mock
   approval-gated change requests.
+- Deterministic LangGraph orchestration for retrieval, MCP tool calls,
+  clarification, and human approval gating.
 - Pytest and Ruff configuration managed through `pyproject.toml`.
 
 The proposed end-to-end architecture and delivery sequence are documented in
@@ -220,6 +222,21 @@ request is marked as requiring human approval and does not create an external
 record. Tool contracts and intended agent behavior are documented in
 [docs/mcp_tools.md](docs/mcp_tools.md).
 
+## Agent Flow
+
+The local LangGraph workflow uses an explicit typed state and deterministic
+router. A normal documentation question uses hybrid RAG; an explicit local
+tool request calls the MCP service logic; a mock change-request action is
+blocked in a pending human-approval state; and an ambiguous request asks for
+clarification. The final response reports answer text, the route taken,
+sources, tool calls, and approval status.
+
+No external LLM or API key is required. The current router is selected with
+`API_AGENT_ROUTER_BACKEND="deterministic"` and is isolated behind a node
+interface so a configured LLM router can be added later. Module details are in
+[app/agent/README.md](app/agent/README.md), with the graph diagram in
+[docs/architecture.md](docs/architecture.md).
+
 ## Configuration
 
 Configuration is read from environment variables or a local `.env` file.
@@ -238,6 +255,7 @@ Configuration is read from environment variables or a local `.env` file.
 | `API_AGENT_EMBEDDING_BACKEND` | `local_hashing` fallback or `sentence_transformers` semantic embeddings | `local_hashing` in `.env.example` |
 | `API_AGENT_EMBEDDING_MODEL_NAME` | Hugging Face model ID or local folder used by `sentence_transformers` | `BAAI/bge-large-en-v1.5` |
 | `API_AGENT_EMBEDDING_BATCH_SIZE` | Number of chunk texts embedded per batch | `32` |
+| `API_AGENT_ROUTER_BACKEND` | Agent routing implementation; deterministic only in the local initial workflow | `deterministic` |
 | `API_AGENT_RAG_CHUNK_SIZE` | Maximum chunk size in characters | `1000` |
 | `API_AGENT_RAG_CHUNK_OVERLAP` | Repeated context between adjacent chunks | `150` |
 | `API_PORT` | Published API port in Docker Compose | `8000` |
@@ -260,7 +278,8 @@ docker compose --env-file .env.example config --quiet
 
 ## Planned Modules
 
-Future phases introduce LangGraph workflow orchestration, an MCP tool server,
-answer generation over retrieved fictional documentation, Postgres operational
-metadata integration, and Phoenix tracing and evaluation instrumentation. All
-corpus content and examples will remain synthetic.
+Future phases introduce an HTTP surface for the agent workflow, persistence of
+operational metadata in Postgres, and Phoenix tracing and evaluation
+instrumentation. Answer generation can later use a configured model while
+preserving the deterministic approval boundary. All corpus content and
+examples will remain synthetic.

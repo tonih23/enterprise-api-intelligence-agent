@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Environment = Literal["local", "test", "staging", "production"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 EmbeddingBackend = Literal["sentence_transformers", "local_hashing"]
+RouterBackend = Literal["deterministic"]
 
 
 class Settings(BaseSettings):
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     embedding_backend: EmbeddingBackend = "sentence_transformers"
     embedding_model_name: str = "BAAI/bge-large-en-v1.5"
     embedding_batch_size: int = Field(default=32, ge=1)
+    router_backend: RouterBackend = "deterministic"
     rag_chunk_size: int = Field(default=1000, ge=100)
     rag_chunk_overlap: int = Field(default=150, ge=0)
 

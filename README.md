@@ -16,6 +16,8 @@ use internal company data or call real APIs.
 - `GET /health` endpoint with a typed response contract.
 - Docker Compose services for the API, Postgres, OpenSearch, and Phoenix.
 - Metadata-aware RAG ingestion for the fictional documentation corpus.
+- Local MCP tools for synthetic API lookup, contract validation, and mock
+  approval-gated change requests.
 - Pytest and Ruff configuration managed through `pyproject.toml`.
 
 The proposed end-to-end architecture and delivery sequence are documented in
@@ -203,6 +205,20 @@ Vector and hybrid modes must use the embedding backend and vector dimensions
 used to build the selected index. With the local template both use
 `local_hashing`; a BGE semantic index must be queried with
 `sentence_transformers` and its compatible index name.
+
+## MCP Server
+
+Run the local MCP stdio server with:
+
+```bash
+uv run python -m app.mcp_server.server
+```
+
+It exposes read-only catalogue search, synthetic API detail lookup, local
+OpenAPI validation, and a mock change-request proposal tool. The mock change
+request is marked as requiring human approval and does not create an external
+record. Tool contracts and intended agent behavior are documented in
+[docs/mcp_tools.md](docs/mcp_tools.md).
 
 ## Configuration
 

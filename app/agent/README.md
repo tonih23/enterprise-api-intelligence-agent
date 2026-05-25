@@ -31,8 +31,10 @@ does not require a model key today.
 
 `app.agent.api` exposes `POST /agent/chat`, `GET /agent/sessions/{session_id}`,
 and `POST /agent/approve/{approval_id}`. Chat requests accept only a user
-message and optional session identifier; explicit commands such as
-`Get API details for hcp_search_api` are mapped to local read-only MCP tools.
+message, optional session identifier, and retrieval `mode`/`top_k` controls;
+documentation answers expose retrieved chunks for clients such as the local
+Streamlit demo. Explicit commands such as `Get API details for hcp_search_api`
+are mapped to local read-only MCP tools.
 
 `repository.py` defines the session and approval persistence boundary. The
 initial application uses `InMemoryAgentRepository` so local demos and tests

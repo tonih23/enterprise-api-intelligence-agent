@@ -44,6 +44,7 @@ def create_mcp_node(tools: LocalMcpTools) -> Callable[[AgentState], dict[str, ob
     def invoke_tool(state: AgentState) -> dict[str, object]:
         request = state["request"]
         tool_request = request.requested_tool
+        retrieved_chunks = []
         if tool_request is None:
             return {"draft_answer": "No local MCP tool request was supplied."}
         if isinstance(tool_request, CreateChangeRequestToolRequest):
@@ -59,6 +60,7 @@ def create_mcp_node(tools: LocalMcpTools) -> Callable[[AgentState], dict[str, ob
                 query = tool_request.arguments.query or request.query
                 filters = tool_request.arguments.filters or request.filters
                 result = tools.search_api_catalog(query, filters)
+                retrieved_chunks = result.search.results
                 sources = [
                     SourceReference(
                         source_path=chunk.source_path,
@@ -116,6 +118,11 @@ def create_mcp_node(tools: LocalMcpTools) -> Callable[[AgentState], dict[str, ob
             status="completed",
             result=result.model_dump(mode="json"),
         )
-        return {"tool_calls": [call], "sources": sources, "draft_answer": summary}
+        return {
+            "tool_calls": [call],
+            "retrieved_chunks": retrieved_chunks,
+            "sources": sources,
+            "draft_answer": summary,
+        }
 
     return invoke_tool

@@ -31,6 +31,7 @@ from app.mcp_server.schemas import ChangeRequestInput, MockChangeRequest
 from app.mcp_server.tools import McpToolService
 from app.observability.phoenix import AgentTracer, get_agent_tracer
 from app.rag.retriever import RETRIEVAL_UNAVAILABLE_DETAIL, RagRetriever, get_retriever
+from app.rag.schemas import RetrievalMode, RetrievedChunk
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 _GET_DETAILS = re.compile(
@@ -45,6 +46,15 @@ _SEARCH_CATALOG = re.compile(
     r"^search\s+(?:the\s+)?api\s+catalog(?:ue)?\s+for\s+(?P<query>.+)$",
     re.IGNORECASE,
 )
+_VALIDATE_KNOWN_SPEC = re.compile(
+    r"^validate\s+(?:the\s+)?(?P<api_name>hcp\s+search|clinical\s+trials)"
+    r"\s+openapi\s+spec(?:ification)?[?.]?$",
+    re.IGNORECASE,
+)
+_KNOWN_SPEC_PATHS = {
+    "hcp search": "hcp_search_api.openapi.yaml",
+    "clinical trials": "clinical_trials_api.openapi.yaml",
+}
 
 
 class ChatRequest(BaseModel):
@@ -54,6 +64,8 @@ class ChatRequest(BaseModel):
 
     user_message: NonEmptyText
     session_id: NonEmptyText | None = None
+    mode: RetrievalMode = "hybrid"
+    top_k: int = Field(default=5, ge=1, le=20)
 
 
 class ChatResponse(BaseModel):
@@ -61,6 +73,7 @@ class ChatResponse(BaseModel):
 
     final_answer: str
     route_taken: AgentRoute
+    retrieved_chunks: list[RetrievedChunk] = Field(default_factory=list)
     sources: list[SourceReference] = Field(default_factory=list)
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
     approval_status: ApprovalStatus
@@ -133,13 +146,16 @@ def _session_id(provided_session_id: str | None) -> str:
     return provided_session_id or f"session_{uuid4().hex}"
 
 
-def _request_from_message(user_message: str) -> AgentRequest:
+def _request_from_message(
+    user_message: str, *, mode: RetrievalMode = "hybrid", top_k: int = 5
+) -> AgentRequest:
     """Map a few explicit local tool commands; otherwise use normal routing."""
 
+    request_fields = {"query": user_message, "mode": mode, "top_k": top_k}
     match = _GET_DETAILS.match(user_message)
     if match:
         return AgentRequest(
-            query=user_message,
+            **request_fields,
             requested_tool={
                 "tool_name": "get_api_details",
                 "arguments": {"api_name": match.group("api_name")},
@@ -148,22 +164,32 @@ def _request_from_message(user_message: str) -> AgentRequest:
     match = _VALIDATE_SPEC.match(user_message)
     if match:
         return AgentRequest(
-            query=user_message,
+            **request_fields,
             requested_tool={
                 "tool_name": "validate_openapi_spec",
                 "arguments": {"spec_path": match.group("spec_path")},
             },
         )
+    match = _VALIDATE_KNOWN_SPEC.match(user_message)
+    if match:
+        api_name = " ".join(match.group("api_name").lower().split())
+        return AgentRequest(
+            **request_fields,
+            requested_tool={
+                "tool_name": "validate_openapi_spec",
+                "arguments": {"spec_path": _KNOWN_SPEC_PATHS[api_name]},
+            },
+        )
     match = _SEARCH_CATALOG.match(user_message)
     if match:
         return AgentRequest(
-            query=user_message,
+            **request_fields,
             requested_tool={
                 "tool_name": "search_api_catalog",
                 "arguments": {"query": match.group("query").rstrip("?.")},
             },
         )
-    return AgentRequest(query=user_message)
+    return AgentRequest(**request_fields)
 
 
 def _pending_approval_input(result: AgentResponse) -> ChangeRequestInput:
@@ -190,6 +216,7 @@ def _chat_response(
     return ChatResponse(
         final_answer=result.answer_text,
         route_taken=result.route_taken,
+        retrieved_chunks=result.retrieved_chunks,
         sources=result.sources,
         tool_calls=result.tool_calls,
         approval_status=result.approval_status,
@@ -208,7 +235,11 @@ def chat(
 
     session_id = _session_id(request.session_id)
     try:
-        result = workflow.invoke(_request_from_message(request.user_message))
+        result = workflow.invoke(
+            _request_from_message(
+                request.user_message, mode=request.mode, top_k=request.top_k
+            )
+        )
     except (OpenSearchException, OSError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

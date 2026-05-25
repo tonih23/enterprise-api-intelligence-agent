@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal, TypedDict
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.mcp_server.schemas import ChangeRequestInput
-from app.rag.schemas import RetrievedChunk, SearchFilters
+from app.rag.schemas import RetrievalMode, RetrievedChunk, SearchFilters
 
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 AgentRoute = Literal[
@@ -95,6 +95,7 @@ class AgentRequest(BaseModel):
 
     query: NonEmptyText
     top_k: int = Field(default=5, ge=1, le=20)
+    mode: RetrievalMode = "hybrid"
     filters: SearchFilters | None = None
     requested_tool: ToolRequest | None = None
 
@@ -123,6 +124,7 @@ class AgentResponse(BaseModel):
 
     answer_text: str
     route_taken: AgentRoute
+    retrieved_chunks: list[RetrievedChunk] = Field(default_factory=list)
     sources: list[SourceReference] = Field(default_factory=list)
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
     approval_status: ApprovalStatus = "not_required"
@@ -170,6 +172,7 @@ def response_from_state(state: AgentState) -> AgentResponse:
     return AgentResponse(
         answer_text=state["answer_text"],
         route_taken=state["route"],
+        retrieved_chunks=state["retrieved_chunks"],
         sources=state["sources"],
         tool_calls=state["tool_calls"],
         approval_status=state["approval_status"],

@@ -51,6 +51,7 @@ extension.
 | Tool interface | MCP Python SDK with local synthetic tools |
 | Retrieval | OpenSearch hybrid keyword/vector search |
 | Embeddings | Sentence Transformers or deterministic `local_hashing` fallback |
+| Demo UI | Streamlit client for the local FastAPI service |
 | Local infrastructure | Docker Compose, Postgres, Phoenix |
 | Quality | pytest, Ruff, synthetic evaluation suite |
 
@@ -99,6 +100,24 @@ Tracing is optional. Set `ENABLE_TRACING="true"` in `.env`, open Phoenix at
 retrieval, tool, approval, guardrail, and final-answer spans. Details are in
 [docs/observability.md](docs/observability.md).
 
+## Local Demo UI
+
+The Streamlit UI is a local HTTP client for the existing FastAPI endpoints; it
+does not duplicate agent logic. After starting the backend and ingesting the
+synthetic documents as described below, run:
+
+```bash
+uv run uvicorn app.main:app --reload
+uv run streamlit run demo/streamlit_app.py
+```
+
+The UI selects `keyword`, `vector`, or `hybrid` retrieval for documentation
+questions and displays workflow route, approval state, tools, sources, and
+evidence. To demonstrate BGE large, configure
+`API_AGENT_EMBEDDING_BACKEND="sentence_transformers"` and a BGE model ID or
+local folder before ingestion, using a fresh 1024-dimensional index. See
+[docs/demo.md](docs/demo.md).
+
 ## How To Ingest Synthetic Docs
 
 With OpenSearch running:
@@ -137,7 +156,7 @@ Ask a grounded documentation question:
 ```bash
 curl -X POST http://127.0.0.1:8000/agent/chat \
   -H "Content-Type: application/json" \
-  -d '{"user_message":"Which clinical trial operation needs approval?"}'
+  -d '{"user_message":"Which clinical trial operation needs approval?","mode":"hybrid","top_k":5}'
 ```
 
 Requesting a mock governed action returns an `approval_id` without executing
@@ -154,7 +173,8 @@ curl http://127.0.0.1:8000/agent/sessions/demo-session
 
 Approval returns a synthetic mock result only; it does not create a record in
 an external change-management system. Tool contracts are documented in
-[docs/mcp_tools.md](docs/mcp_tools.md).
+[docs/mcp_tools.md](docs/mcp_tools.md). Documentation routes also return
+`retrieved_chunks` for evidence display in local clients.
 
 ## How To Run Evals
 

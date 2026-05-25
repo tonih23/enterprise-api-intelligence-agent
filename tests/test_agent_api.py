@@ -32,7 +32,7 @@ class FakeRetriever:
                 score=0.04,
                 source_path="data/docs/api_governance_runbook.md",
                 metadata={"synthetic": True},
-                retrieval_mode="hybrid",
+                retrieval_mode=request.mode,
             )
         ]
 
@@ -97,6 +97,7 @@ def test_chat_returns_graph_result_and_session_history() -> None:
     assert chat.status_code == 200
     payload = chat.json()
     assert payload["route_taken"] == "answer_with_rag"
+    assert payload["retrieved_chunks"][0]["chunk_id"] == "chat-source"
     assert payload["sources"][0]["chunk_id"] == "chat-source"
     assert payload["approval_status"] == "not_required"
     assert payload["session_id"].startswith("session_")
@@ -105,6 +106,22 @@ def test_chat_returns_graph_result_and_session_history() -> None:
     assert history.status_code == 200
     assert history.json()["messages"][0]["user_message"].startswith("Which API")
     assert history.json()["approvals"] == []
+
+
+def test_chat_accepts_demo_retrieval_mode_and_returns_matching_evidence() -> None:
+    client, _ = build_test_client()
+
+    response = client.post(
+        "/agent/chat",
+        json={
+            "user_message": "Which exact endpoint should I use?",
+            "mode": "keyword",
+            "top_k": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["retrieved_chunks"][0]["retrieval_mode"] == "keyword"
 
 
 def test_chat_maps_explicit_local_api_details_command_to_mcp() -> None:
@@ -124,6 +141,21 @@ def test_chat_maps_explicit_local_api_details_command_to_mcp() -> None:
     assert payload["route_taken"] == "call_mcp_tool"
     assert payload["tool_calls"][0]["tool_name"] == "get_api_details"
     assert payload["sources"][0]["source_path"].endswith("hcp_search_api.openapi.yaml")
+
+
+def test_chat_maps_friendly_demo_spec_validation_command_to_local_tool() -> None:
+    client, _ = build_test_client()
+
+    response = client.post(
+        "/agent/chat",
+        json={"user_message": "Validate the HCP Search OpenAPI spec."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["route_taken"] == "call_mcp_tool"
+    assert payload["tool_calls"][0]["tool_name"] == "validate_openapi_spec"
+    assert payload["tool_calls"][0]["result"]["valid"] is True
 
 
 def test_risky_chat_returns_approval_then_executes_mock_only_after_approval() -> None:

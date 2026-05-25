@@ -22,7 +22,7 @@ class FakeRetriever:
                 score=0.04,
                 source_path="data/docs/api_governance_runbook.md",
                 metadata={"api_name": "clinical_trials_api"},
-                retrieval_mode="hybrid",
+                retrieval_mode=request.mode,
             )
         ]
 
@@ -73,9 +73,23 @@ def test_document_question_routes_to_hybrid_rag_and_returns_sources() -> None:
 
     assert response.route_taken == "answer_with_rag"
     assert retriever.requests[0].mode == "hybrid"
+    assert response.retrieved_chunks[0].chunk_id == "approval-doc"
     assert response.sources[0].chunk_id == "approval-doc"
     assert "synthetic documentation corpus" in response.answer_text
     assert response.tool_calls == []
+
+
+def test_document_question_honors_selected_retrieval_mode_and_top_k() -> None:
+    retriever = FakeRetriever()
+    workflow = AgentWorkflow(retriever=retriever, mcp_tools=FakeMcpTools())
+
+    response = workflow.invoke(
+        AgentRequest(query="Find an exact path.", mode="keyword", top_k=2)
+    )
+
+    assert retriever.requests[0].mode == "keyword"
+    assert retriever.requests[0].top_k == 2
+    assert response.retrieved_chunks[0].retrieval_mode == "keyword"
 
 
 def test_explicit_local_lookup_routes_to_mcp_tool() -> None:

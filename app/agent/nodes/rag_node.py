@@ -10,7 +10,7 @@ from app.rag.schemas import SearchRequest
 def create_rag_node(
     retriever: CatalogRetriever,
 ) -> Callable[[AgentState], dict[str, object]]:
-    """Build a node that executes existing hybrid retrieval."""
+    """Build a node that executes configured document retrieval."""
 
     def retrieve_documents(state: AgentState) -> dict[str, object]:
         request = state["request"]
@@ -18,7 +18,7 @@ def create_rag_node(
             SearchRequest(
                 query=request.query,
                 top_k=request.top_k,
-                mode="hybrid",
+                mode=request.mode,
                 filters=request.filters,
             )
         )

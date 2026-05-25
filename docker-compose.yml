@@ -1,0 +1,86 @@
+services:
+  api:
+    build:
+      context: .
+    environment:
+      API_AGENT_APP_NAME: "${API_AGENT_APP_NAME:-Enterprise API Intelligence Agent}"
+      API_AGENT_APP_VERSION: "${API_AGENT_APP_VERSION:-0.1.0}"
+      API_AGENT_ENVIRONMENT: "${API_AGENT_ENVIRONMENT:-local}"
+      API_AGENT_DEBUG: "${API_AGENT_DEBUG:-false}"
+      API_AGENT_LOG_LEVEL: "${API_AGENT_LOG_LEVEL:-INFO}"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: "postgres:${POSTGRES_VERSION:-16-alpine}"
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-api_intelligence}"
+      POSTGRES_USER: "${POSTGRES_USER:-api_agent}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  opensearch:
+    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-3.6.0}"
+    environment:
+      discovery.type: "single-node"
+      bootstrap.memory_lock: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}"
+    ports:
+      - "${OPENSEARCH_PORT:-9200}:9200"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9200 >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  phoenix:
+    image: "arizephoenix/phoenix:${PHOENIX_VERSION:-latest}"
+    environment:
+      PHOENIX_PORT: "6006"
+      PHOENIX_GRPC_PORT: "4317"
+      PHOENIX_POSTGRES_HOST: "postgres"
+      PHOENIX_POSTGRES_PORT: "5432"
+      PHOENIX_POSTGRES_USER: "${POSTGRES_USER:-api_agent}"
+      PHOENIX_POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      PHOENIX_POSTGRES_DB: "${POSTGRES_DB:-api_intelligence}"
+      PHOENIX_SQL_DATABASE_SCHEMA: "phoenix"
+    ports:
+      - "${PHOENIX_PORT:-6006}:6006"
+      - "${PHOENIX_GRPC_PORT:-4317}:4317"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  opensearch_data:

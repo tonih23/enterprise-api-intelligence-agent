@@ -10,6 +10,8 @@ Agent.
   hybrid retrieval over previously ingested synthetic documentation.
 - `agent/api.py` exposes chat, local session history, and simulated approval
   endpoints backed by the deterministic LangGraph workflow.
+- `observability/phoenix.py` optionally exports workflow spans to local
+  Phoenix over OTLP/HTTP without making tracing a request dependency.
 
 Run the API from the repository root with:
 

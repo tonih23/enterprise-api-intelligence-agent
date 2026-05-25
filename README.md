@@ -22,6 +22,8 @@ use internal company data or call real APIs.
   clarification, and human approval gating.
 - Agent HTTP endpoints for chat, local session history, and simulated approval
   of mock governed actions.
+- Optional Phoenix-compatible traces for agent routing, retrieval, tools,
+  approval decisions, and final response formatting.
 - Pytest and Ruff configuration managed through `pyproject.toml`.
 
 The proposed end-to-end architecture and delivery sequence are documented in
@@ -280,6 +282,36 @@ in memory behind a repository interface and resets when the API process
 restarts. This keeps local execution simple while preserving a clean boundary
 for a future Postgres-backed repository.
 
+## Phoenix Tracing
+
+Tracing is optional and disabled by default. Start the local Phoenix UI and
+collector with its database dependency:
+
+```bash
+docker compose up -d postgres phoenix
+```
+
+Set these values in `.env` before running the API locally:
+
+```dotenv
+ENABLE_TRACING="true"
+PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006/v1/traces"
+```
+
+Open Phoenix at
+[http://127.0.0.1:6006](http://127.0.0.1:6006), then send requests to
+`POST /agent/chat`. For a documentation question, expect spans for
+`agent.run`, `agent.router`, `agent.rag`, and `agent.final_answer`. Local MCP
+requests add `agent.mcp`; approval-gated requests add
+`agent.human_approval`, and approval continuation adds
+`agent.human_approval.decision`.
+
+If tracing is disabled or the exporter cannot be configured, requests continue
+normally. Span attributes contain workflow metadata only, not message text,
+retrieved passages, or tool arguments. See
+[docs/observability.md](docs/observability.md) for the AgentOps and governance
+rationale.
+
 ## Configuration
 
 Configuration is read from environment variables or a local `.env` file.
@@ -301,6 +333,8 @@ Configuration is read from environment variables or a local `.env` file.
 | `API_AGENT_ROUTER_BACKEND` | Agent routing implementation; deterministic only in the local initial workflow | `deterministic` |
 | `API_AGENT_RAG_CHUNK_SIZE` | Maximum chunk size in characters | `1000` |
 | `API_AGENT_RAG_CHUNK_OVERLAP` | Repeated context between adjacent chunks | `150` |
+| `ENABLE_TRACING` | Enable OTLP/HTTP trace export for agent workflow execution | `false` |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix HTTP trace collector used when tracing is enabled | `http://127.0.0.1:6006/v1/traces` |
 | `API_PORT` | Published API port in Docker Compose | `8000` |
 | `POSTGRES_*` | Local Postgres image, database, credentials, and port | See `.env.example` |
 | `OPENSEARCH_*` | Local OpenSearch image, HTTP port, and JVM heap | See `.env.example` |
@@ -322,6 +356,6 @@ docker compose --env-file .env.example config --quiet
 ## Planned Modules
 
 Future phases introduce durable Postgres implementation of the agent
-repository and Phoenix tracing and evaluation instrumentation. Answer
-generation can later use a configured model while preserving the deterministic
-approval boundary. All corpus content and examples will remain synthetic.
+repository and Phoenix-based evaluation instrumentation. Answer generation can
+later use a configured model while preserving the deterministic approval
+boundary. All corpus content and examples will remain synthetic.

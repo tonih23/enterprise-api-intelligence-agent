@@ -29,6 +29,7 @@ from app.agent.state import (
 from app.config import Settings, get_settings
 from app.mcp_server.schemas import ChangeRequestInput, MockChangeRequest
 from app.mcp_server.tools import McpToolService
+from app.observability.phoenix import AgentTracer, get_agent_tracer
 from app.rag.retriever import RagRetriever, get_retriever
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -118,6 +119,14 @@ def get_approval_tools() -> McpToolService:
     """Return local synthetic-only tools used after explicit approval."""
 
     return McpToolService()
+
+
+def get_observability_tracer(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AgentTracer:
+    """Return optional tracing for HTTP-level approval continuation work."""
+
+    return get_agent_tracer(settings)
 
 
 def _session_id(provided_session_id: str | None) -> str:
@@ -274,43 +283,54 @@ def approve(
     approval_id: str,
     repository: Annotated[AgentRepository, Depends(get_agent_repository)],
     tools: Annotated[McpToolService, Depends(get_approval_tools)],
+    tracer: Annotated[AgentTracer, Depends(get_observability_tracer)],
 ) -> ApprovalResponse:
     """Simulate approval, then run only the local mock action."""
 
-    approval = repository.get_approval(approval_id)
-    if approval is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Approval request not found."
-        )
-    if approval.status == "approved":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Approval request has already been approved.",
-        )
+    with tracer.span("agent.human_approval.decision") as span:
+        approval = repository.get_approval(approval_id)
+        if approval is None:
+            span.set_attribute("approval.status", "not_found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request not found.",
+            )
+        if approval.status == "approved":
+            span.set_attribute("approval.status", "already_approved")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Approval request has already been approved.",
+            )
 
-    proposed = tools.create_change_request_mock(
-        approval.request.title,
-        approval.request.description,
-        approval.request.risk_level,
-    )
-    approved_result = MockChangeRequest.model_validate(
-        {**proposed.model_dump(mode="json"), "status": "approved"}
-    )
-    repository.mark_approved(approval_id, approved_result)
-    tool_call = ToolCallRecord(
-        tool_name="create_change_request_mock",
-        arguments=approval.request.model_dump(mode="json"),
-        status="completed",
-        result=approved_result.model_dump(mode="json"),
-        requires_human_approval=True,
-    )
-    return ApprovalResponse(
-        approval_id=approval.approval_id,
-        session_id=approval.session_id,
-        final_answer=(
-            "Human approval recorded. The approved mock change-request action "
-            "has been returned without creating an external record."
-        ),
-        tool_calls=[tool_call],
-        approved_mock_action=approved_result,
-    )
+        span.set_attribute("approval.status", "approved")
+        span.set_attribute("approval.required", True)
+        with tracer.span(
+            "agent.mcp",
+            {"tool.name": "create_change_request_mock", "tool.after_approval": True},
+        ):
+            proposed = tools.create_change_request_mock(
+                approval.request.title,
+                approval.request.description,
+                approval.request.risk_level,
+            )
+        approved_result = MockChangeRequest.model_validate(
+            {**proposed.model_dump(mode="json"), "status": "approved"}
+        )
+        repository.mark_approved(approval_id, approved_result)
+        tool_call = ToolCallRecord(
+            tool_name="create_change_request_mock",
+            arguments=approval.request.model_dump(mode="json"),
+            status="completed",
+            result=approved_result.model_dump(mode="json"),
+            requires_human_approval=True,
+        )
+        return ApprovalResponse(
+            approval_id=approval.approval_id,
+            session_id=approval.session_id,
+            final_answer=(
+                "Human approval recorded. The approved mock change-request action "
+                "has been returned without creating an external record."
+            ),
+            tool_calls=[tool_call],
+            approved_mock_action=approved_result,
+        )

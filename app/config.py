@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     embedding_model_name: str = "BAAI/bge-large-en-v1.5"
     embedding_batch_size: int = Field(default=32, ge=1)
     router_backend: RouterBackend = "deterministic"
+    enable_tracing: bool = Field(default=False, validation_alias="ENABLE_TRACING")
+    phoenix_collector_endpoint: str = Field(
+        default="http://127.0.0.1:6006/v1/traces",
+        validation_alias="PHOENIX_COLLECTOR_ENDPOINT",
+    )
     rag_chunk_size: int = Field(default=1000, ge=100)
     rag_chunk_overlap: int = Field(default=150, ge=0)
 

@@ -62,8 +62,10 @@ flowchart LR
    local mock action, returning an object that explicitly creates no external
    record.
 8. The current HTTP layer stores session and approval metadata in an in-memory
-   repository implementation; a Postgres adapter and Phoenix traces remain
-   planned operational integrations.
+   repository implementation; a Postgres adapter remains a planned
+   operational integration.
+9. When `ENABLE_TRACING=true`, optional OpenTelemetry spans are exported to
+   local Phoenix for the agent run and executed graph nodes.
 
 ## Implemented Graph Flow
 
@@ -114,7 +116,12 @@ Tool-using agents must distinguish reading information from actions with effects
 
 ### Why Tracing And Evaluation
 
-Quality cannot be judged only by a successful HTTP response. Phoenix tracing makes retrieval evidence, workflow transitions, tool use, latency, and failures visible. Evaluation should measure groundedness, citation relevance, retrieval quality, tool-selection correctness, and approval-policy compliance. These signals support regression testing and informed iteration.
+Quality cannot be judged only by a successful HTTP response. Optional Phoenix
+tracing makes workflow transitions, retrieval execution, tool use, approval
+decisions, latency, and failures visible without making observability a runtime
+dependency. Current spans retain operational metadata only; future evaluation
+should measure groundedness, citation relevance, retrieval quality,
+tool-selection correctness, and approval-policy compliance.
 
 ## Enterprise AI And AgentOps Mapping
 

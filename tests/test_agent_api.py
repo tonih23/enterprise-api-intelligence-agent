@@ -1,14 +1,23 @@
 """HTTP behavior tests for local LangGraph agent endpoints."""
 
+from collections.abc import Mapping
+from contextlib import contextmanager
+
 from fastapi.testclient import TestClient
 
-from app.agent.api import get_agent_repository, get_agent_workflow, get_approval_tools
+from app.agent.api import (
+    get_agent_repository,
+    get_agent_workflow,
+    get_approval_tools,
+    get_observability_tracer,
+)
 from app.agent.graph import AgentWorkflow
 from app.agent.repository import InMemoryAgentRepository
 from app.config import Settings
 from app.main import create_app
 from app.mcp_server.schemas import MockChangeRequest, RiskLevel
 from app.mcp_server.tools import McpToolService
+from app.observability.phoenix import TraceValue
 from app.rag.schemas import RetrievedChunk, SearchRequest
 
 
@@ -40,6 +49,30 @@ class RecordingTools(McpToolService):
     ) -> MockChangeRequest:
         self.change_request_calls.append((title, description, risk_level))
         return super().create_change_request_mock(title, description, risk_level)
+
+
+class RecordingSpan:
+    """Minimal API-level span recorder used for approval verification."""
+
+    def __init__(self, name: str, attributes: Mapping[str, TraceValue] | None) -> None:
+        self.name = name
+        self.attributes = dict(attributes or {})
+
+    def set_attribute(self, key: str, value: TraceValue) -> None:
+        self.attributes[key] = value
+
+
+class RecordingTracer:
+    """Collect explicit approval continuation spans without an exporter."""
+
+    def __init__(self) -> None:
+        self.spans: list[RecordingSpan] = []
+
+    @contextmanager
+    def span(self, name: str, attributes: Mapping[str, TraceValue] | None = None):
+        span = RecordingSpan(name, attributes)
+        self.spans.append(span)
+        yield span
 
 
 def build_test_client() -> tuple[TestClient, RecordingTools]:
@@ -144,3 +177,23 @@ def test_unknown_session_returns_not_found() -> None:
     response = client.get("/agent/sessions/does-not-exist")
 
     assert response.status_code == 404
+
+
+def test_approval_endpoint_traces_decision_and_approved_mock_call() -> None:
+    client, _ = build_test_client()
+    tracer = RecordingTracer()
+    client.app.dependency_overrides[get_observability_tracer] = lambda: tracer
+    pending = client.post(
+        "/agent/chat",
+        json={"user_message": "Create a change request for a synthetic update."},
+    ).json()
+
+    response = client.post(f"/agent/approve/{pending['approval_id']}")
+
+    spans = {span.name: span for span in tracer.spans}
+    assert response.status_code == 200
+    assert (
+        spans["agent.human_approval.decision"].attributes["approval.status"]
+        == "approved"
+    )
+    assert spans["agent.mcp"].attributes["tool.name"] == "create_change_request_mock"

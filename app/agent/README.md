@@ -37,3 +37,8 @@ have no database bootstrap requirement. It records basic session metadata and
 mock approval outcomes only for the application process lifetime. A Postgres
 adapter can implement the same protocol when durable operational persistence
 and migrations are added.
+
+The graph accepts an optional tracer supplied by `app.observability.phoenix`.
+With `ENABLE_TRACING=true`, each graph run and executed node emits local
+Phoenix-compatible spans. With tracing disabled or unavailable, the same
+workflow executes through a no-op tracer.

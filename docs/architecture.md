@@ -25,6 +25,7 @@ flowchart LR
     API --> Repo["In-memory session and approval repository"]
     Repo -. "future adapter" .-> PG["Managed/Postgres persistence"]
     Graph -. "optional spans" .-> Phoenix["Local Phoenix"]
+    Graph -. "optional spans" .-> LangSmith["Managed LangSmith"]
     Phoenix --> LocalPG["Compose Postgres"]
 ```
 
@@ -44,6 +45,7 @@ logic used by the graph.
 | Approval gate | Stops a mock governed action until explicit approval | In-memory local lifecycle |
 | Guardrails | Blocks restricted requests and unsupported factual answers | Deterministic baseline controls |
 | Phoenix | Optional traces for workflow paths and control outcomes | Metadata only; no prompt or chunk text |
+| LangSmith | Optional managed trace view for LangGraph workflows | Metadata only; requires local opt-in key |
 | Postgres | Phoenix local storage in Compose | Application persistence is not implemented |
 
 ## Agent Flow
@@ -106,11 +108,11 @@ authorization or data-loss prevention layer.
 
 ### Tracing And Evaluation
 
-Optional Phoenix spans show which workflow path ran, which tool was selected,
-and whether approval was required without exporting message or document
-payloads. A deterministic 20-case evaluation suite checks routes, evidence,
-tool choice, approval behavior, and heuristic groundedness. Both are local
-engineering signals, not evidence of production certification.
+Optional Phoenix or LangSmith spans show which workflow path ran, which tool
+was selected, and whether approval was required without exporting message or
+document payloads. A deterministic 20-case evaluation suite checks routes,
+evidence, tool choice, approval behavior, and heuristic groundedness. These
+are engineering signals, not evidence of production certification.
 
 ## AgentOps Mapping
 
@@ -119,7 +121,7 @@ engineering signals, not evidence of production certification.
 | Grounded answers | Versioned synthetic corpus, hybrid retrieval, returned sources |
 | Controlled capabilities | Typed local MCP-style tools and approval-gated mock action |
 | Safety boundary | Request, tool, and final-answer guardrails |
-| Operational inspection | Optional Phoenix trace metadata |
+| Operational inspection | Optional Phoenix or LangSmith trace metadata |
 | Regression quality | Offline synthetic evaluation suite and pytest |
 | Repeatable setup | Environment configuration and Docker Compose |
 

@@ -1,14 +1,16 @@
 # Observability Module
 
-`phoenix.py` provides optional OpenTelemetry-compatible tracing for agent
-execution. Tracing is disabled by default and uses a no-op tracer unless
-`ENABLE_TRACING=true`.
+`phoenix.py` owns optional tracer selection and the Phoenix
+OpenTelemetry-compatible implementation. `langsmith.py` provides an optional
+managed LangSmith adapter. Tracing is disabled by default.
 
-When enabled, spans are exported over OTLP/HTTP to
-`PHOENIX_COLLECTOR_ENDPOINT`, which defaults to a locally running Phoenix
-collector. Instrumentation records route names, result counts, tool names,
-and approval status; it does not attach user messages, retrieved text, or
-tool argument payloads to spans.
+Set `API_AGENT_TRACING_BACKEND="phoenix"` for local Phoenix export over
+OTLP/HTTP, or `API_AGENT_TRACING_BACKEND="langsmith"` with a local
+`LANGSMITH_API_KEY` for managed traces. Legacy `ENABLE_TRACING=true` still
+selects Phoenix if no backend is explicitly configured.
 
-If tracing configuration cannot be initialized, the module logs a warning and
-continues with no-op tracing so agent requests remain functional.
+Both adapters record route names, counts, tool names, approval status, and
+answer-synthesis mode under readable spans such as `router.decide`,
+`rag.retrieve`, `approval.gate`, and `llm.answer_synthesis`. They do not
+attach user messages, prompts, retrieved text, tool argument payloads, or
+credentials. Setup failure falls back to no-op tracing.

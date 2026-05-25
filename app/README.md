@@ -14,8 +14,8 @@ Agent.
   sourced-answer policies at graph boundaries.
 - `llm/` optionally synthesizes final answer wording with Gemini while
   deterministic output remains the default.
-- `observability/phoenix.py` optionally exports workflow spans to local
-  Phoenix over OTLP/HTTP without making tracing a request dependency.
+- `observability/` optionally exports metadata-only workflow spans to local
+  Phoenix or managed LangSmith without making tracing a request dependency.
 - `evals/run_evals.py` executes deterministic regression cases over local
   synthetic artifacts and writes an ignored JSON result.
 

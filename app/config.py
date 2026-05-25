@@ -11,6 +11,7 @@ LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 EmbeddingBackend = Literal["sentence_transformers", "local_hashing"]
 RouterBackend = Literal["deterministic"]
 LlmProvider = Literal["none", "gemini"]
+TracingBackend = Literal["none", "phoenix", "langsmith"]
 
 
 class Settings(BaseSettings):
@@ -39,10 +40,15 @@ class Settings(BaseSettings):
     router_backend: RouterBackend = "deterministic"
     llm_provider: LlmProvider = "none"
     llm_model: str = "gemini-2.5-flash"
+    tracing_backend: TracingBackend = "none"
     enable_tracing: bool = Field(default=False, validation_alias="ENABLE_TRACING")
     phoenix_collector_endpoint: str = Field(
         default="http://127.0.0.1:6006/v1/traces",
         validation_alias="PHOENIX_COLLECTOR_ENDPOINT",
+    )
+    langsmith_project: str = Field(
+        default="enterprise-api-intelligence-agent",
+        validation_alias="LANGSMITH_PROJECT",
     )
     rag_chunk_size: int = Field(default=1000, ge=100)
     rag_chunk_overlap: int = Field(default=150, ge=0)
@@ -54,6 +60,14 @@ class Settings(BaseSettings):
         if self.rag_chunk_overlap >= self.rag_chunk_size:
             raise ValueError("rag_chunk_overlap must be smaller than rag_chunk_size")
         return self
+
+    @property
+    def effective_tracing_backend(self) -> TracingBackend:
+        """Resolve explicit tracing configuration with legacy Phoenix support."""
+
+        if "tracing_backend" in self.model_fields_set:
+            return self.tracing_backend
+        return "phoenix" if self.enable_tracing else self.tracing_backend
 
 
 @lru_cache

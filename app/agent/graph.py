@@ -83,7 +83,7 @@ def build_agent_graph(
         "final_answer",
         traced_node(
             "final_answer",
-            create_final_answer_node(configured_synthesizer),
+            create_final_answer_node(configured_synthesizer, configured_tracer),
             configured_tracer,
         ),
     )
@@ -152,14 +152,23 @@ class AgentWorkflow:
 
         with self.tracer.span(
             "agent.run",
-            {"agent.router_backend": self.router_backend},
+            {
+                "data_scope": "synthetic_demo",
+                "router_backend": self.router_backend,
+                "retrieval_mode": request.mode,
+                "top_k": request.top_k,
+            },
         ) as span:
             completed_state = self.graph.invoke(initial_state(request))
             response = response_from_state(completed_state)
-            span.set_attribute("agent.route", response.route_taken)
-            span.set_attribute("agent.source_count", len(response.sources))
-            span.set_attribute("agent.tool_call_count", len(response.tool_calls))
-            span.set_attribute("approval.status", response.approval_status)
+            span.set_attribute("route_taken", response.route_taken)
+            span.set_attribute("number_of_sources", len(response.sources))
+            span.set_attribute("tool_call_count", len(response.tool_calls))
+            span.set_attribute("approval_status", response.approval_status)
+            span.set_attribute("llm_provider", response.answer_synthesis.provider)
+            span.set_attribute("answer_synthesis_mode", response.answer_synthesis.mode)
+            if response.answer_synthesis.model:
+                span.set_attribute("llm_model", response.answer_synthesis.model)
             return response
 
 

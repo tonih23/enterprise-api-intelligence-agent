@@ -67,6 +67,7 @@ def test_provider_none_does_not_require_google_api_key(monkeypatch) -> None:
     ).invoke(AgentRequest(query="Which API finds HCP candidates?"))
 
     assert response.answer_synthesis.mode == "deterministic"
+    assert response.answer_synthesis.provider == "none"
     assert response.answer_synthesis.warning is None
     assert "synthetic documentation corpus" in response.answer_text
 
@@ -81,6 +82,7 @@ def test_mocked_gemini_answer_is_concise_and_evidence_remains_separate() -> None
 
     assert response.answer_text.count(".") <= 4
     assert response.answer_synthesis.mode == "gemini"
+    assert response.answer_synthesis.provider == "gemini"
     assert response.answer_synthesis.model == "gemini-2.5-flash"
     assert response.sources[0].source_path.endswith("hcp_search_api.openapi.yaml")
     assert response.retrieved_chunks[0].chunk_id == "hcp-evidence"
@@ -97,6 +99,7 @@ def test_gemini_failure_falls_back_without_crashing() -> None:
     ).invoke(AgentRequest(query="Which API finds HCP candidates?"))
 
     assert response.answer_synthesis.mode == "deterministic"
+    assert response.answer_synthesis.provider == "gemini"
     assert response.answer_synthesis.model == "gemini-2.5-flash"
     assert "unavailable" in (response.answer_synthesis.warning or "")
     assert "synthetic documentation corpus" in response.answer_text

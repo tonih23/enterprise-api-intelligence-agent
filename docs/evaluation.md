@@ -74,17 +74,18 @@ checks. A durable Postgres-backed evaluation repository would store:
 - aggregate metric values;
 - per-case route, expected and returned sources, selected tool, and approval
   outcome;
-- a Phoenix trace identifier when trace export is enabled.
+- a trace identifier when optional trace export is enabled.
 
 That storage boundary supports trend analysis, release comparison, and audit
 reporting while keeping the checked-in test data synthetic.
 
-## Optional Phoenix Tracing
+## Optional Tracing
 
-When `ENABLE_TRACING=true`, each evaluated case uses the existing optional
-agent tracing instrumentation and can appear in local Phoenix as an
+When `API_AGENT_TRACING_BACKEND` selects Phoenix or LangSmith, each evaluated
+case uses the existing optional instrumentation and can appear as an
 `agent.run` trace with router, retrieval, MCP, approval, and final-answer
-child spans as applicable.
+child spans as applicable. Legacy `ENABLE_TRACING=true` continues to select
+Phoenix when no backend is specified.
 
 The traced metadata follows the project data-minimization rule: spans record
 workflow outcomes and counts, rather than question text, retrieved content, or

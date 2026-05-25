@@ -66,7 +66,7 @@ extension.
 | LangGraph orchestration | Makes routing, retrieval, tool execution, approval, and final response steps testable. |
 | Human approval | Prevents approval-gated mock change requests from executing immediately. |
 | Guardrails | Rejects restricted requests and requires sources for documentation-based factual answers. |
-| Tracing | Optionally exports workflow spans to local Phoenix for AgentOps inspection. |
+| Tracing | Optionally exports safe workflow metadata to local Phoenix or managed LangSmith. |
 | Evaluations | Runs a 20-question synthetic baseline for route, source, tool, approval, and groundedness metrics. |
 | Optional synthesis | Uses Gemini only to phrase final grounded answers when explicitly configured. |
 
@@ -98,9 +98,15 @@ To run the API process directly while infrastructure remains containerized:
 uv run uvicorn app.main:app --reload
 ```
 
-Tracing is optional. Set `ENABLE_TRACING="true"` in `.env`, open Phoenix at
-`http://127.0.0.1:6006`, and submit agent requests to inspect route,
-retrieval, tool, approval, guardrail, and final-answer spans. Details are in
+## Observability
+
+Tracing is off by default. For local open-source inspection, set
+`API_AGENT_TRACING_BACKEND="phoenix"` and open Phoenix at
+`http://127.0.0.1:6006`. For optional managed inspection alongside LangGraph,
+set `API_AGENT_TRACING_BACKEND="langsmith"`, `LANGSMITH_PROJECT`, and a local
+uncommitted `LANGSMITH_API_KEY`. Legacy `ENABLE_TRACING=true` still enables
+Phoenix when no backend is selected. Both paths export workflow metadata
+only, not prompts, retrieved passages, tool arguments, or secrets. See
 [docs/observability.md](docs/observability.md).
 
 ## Local Demo UI

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from app.llm.schemas import AnswerSynthesisStatus, SynthesizedAnswer
+from app.llm.schemas import AnswerSynthesisStatus, LlmProviderName, SynthesizedAnswer
 
 if TYPE_CHECKING:
     from app.config import Settings
@@ -30,12 +30,23 @@ class AnswerSynthesizer:
         self,
         provider: TextGenerationProvider | None = None,
         *,
+        provider_name: LlmProviderName | None = None,
         configured_model: str | None = None,
         setup_warning: str | None = None,
     ) -> None:
         self.provider = provider
+        self.provider_name: LlmProviderName = provider_name or (
+            "gemini" if provider is not None else "none"
+        )
         self.configured_model = configured_model
         self.setup_warning = setup_warning
+
+    @property
+    def model_name(self) -> str | None:
+        """Return the configured provider model without exposing credentials."""
+        if self.provider is not None:
+            return self.provider.model_name
+        return self.configured_model
 
     def synthesize(
         self, *, prompt: str, deterministic_answer: str
@@ -45,6 +56,7 @@ class AnswerSynthesizer:
             return SynthesizedAnswer(
                 answer_text=deterministic_answer,
                 status=AnswerSynthesisStatus(
+                    provider=self.provider_name,
                     model=self.configured_model,
                     warning=self.setup_warning,
                 ),
@@ -60,6 +72,7 @@ class AnswerSynthesizer:
             return SynthesizedAnswer(
                 answer_text=deterministic_answer,
                 status=AnswerSynthesisStatus(
+                    provider=self.provider_name,
                     model=self.provider.model_name,
                     warning=str(error),
                 ),
@@ -69,6 +82,7 @@ class AnswerSynthesizer:
             answer_text=generated_text,
             status=AnswerSynthesisStatus(
                 mode="gemini",
+                provider=self.provider_name,
                 model=self.provider.model_name,
             ),
         )
@@ -85,6 +99,7 @@ def create_answer_synthesizer(settings: Settings) -> AnswerSynthesizer:
         provider = GeminiProvider.from_environment(settings.llm_model)
     except LlmProviderError as error:
         return AnswerSynthesizer(
+            provider_name="gemini",
             configured_model=settings.llm_model,
             setup_warning=str(error),
         )

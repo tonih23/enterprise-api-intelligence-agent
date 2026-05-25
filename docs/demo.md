@@ -26,9 +26,26 @@ Open the Streamlit URL shown in the terminal, normally
 `POST /agent/chat` endpoint and can continue an approval-gated mock action
 through `POST /agent/approve/{approval_id}`.
 
-Phoenix tracing remains optional; start `postgres` and `phoenix` through
-Docker Compose and set `ENABLE_TRACING="true"` when trace visualization is
-useful for the demo.
+Tracing remains optional. For local Phoenix visualization, start `postgres`
+and `phoenix` through Docker Compose and set
+`API_AGENT_TRACING_BACKEND="phoenix"`. For managed LangSmith traces, set
+`API_AGENT_TRACING_BACKEND="langsmith"`, `LANGSMITH_PROJECT`, and a local
+uncommitted `LANGSMITH_API_KEY`.
+
+## Trace View
+
+With tracing enabled, inspect an `agent.run` trace in Phoenix locally at
+`http://127.0.0.1:6006`, or in the selected LangSmith project. A
+documentation lookup should show `router.decide`, `rag.retrieve`,
+`llm.answer_synthesis`, and `final_answer.compose`; a mock change request
+should show `approval.gate` before any approved mock tool call. Attributes
+such as `retrieval_mode`, `number_of_sources`, `approval_status`, and
+`answer_synthesis_mode` describe the synthetic/demo workflow without
+exporting prompts, document text, or secrets.
+
+Phoenix is the local/open-source demonstration path. LangSmith is a managed
+option that pairs naturally with LangGraph; its free tier is sufficient for a
+small portfolio demo. Never commit API keys.
 
 ## Suggested Demo Questions
 

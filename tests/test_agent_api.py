@@ -244,8 +244,7 @@ def test_approval_endpoint_traces_decision_and_approved_mock_call() -> None:
 
     spans = {span.name: span for span in tracer.spans}
     assert response.status_code == 200
+    assert spans["approval.gate"].attributes["approval_status"] == "approved"
     assert (
-        spans["agent.human_approval.decision"].attributes["approval.status"]
-        == "approved"
+        spans["mcp.tool_call"].attributes["tool_name"] == "create_change_request_mock"
     )
-    assert spans["agent.mcp"].attributes["tool.name"] == "create_change_request_mock"

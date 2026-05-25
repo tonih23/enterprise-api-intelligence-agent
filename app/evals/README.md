@@ -17,5 +17,5 @@ uv run python -m app.evals.run_evals
 ```
 
 The command writes a local ignored artifact to
-`artifacts/evals/latest.json`. If `ENABLE_TRACING=true`, normal agent spans
-are optionally sent to the configured local Phoenix collector.
+`artifacts/evals/latest.json`. If tracing selects Phoenix or LangSmith, normal
+metadata-only agent spans are optionally exported to that backend.

@@ -1,11 +1,10 @@
-"""Optional OpenTelemetry tracing exported to a local Phoenix collector."""
+"""Optional tracer selection and Phoenix OpenTelemetry implementation."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager
-from functools import lru_cache
 from typing import Protocol, TypeVar
 
 from app.agent.state import AgentState
@@ -17,6 +16,16 @@ TraceValue = str | bool | int | float
 NodeResult = dict[str, object]
 Node = Callable[[AgentState], NodeResult]
 T = TypeVar("T")
+NODE_SPAN_NAMES = {
+    "request_guardrails": "guardrails.check",
+    "tool_guardrails": "guardrails.check",
+    "final_guardrails": "guardrails.check",
+    "router": "router.decide",
+    "rag": "rag.retrieve",
+    "mcp": "mcp.tool_call",
+    "human_approval": "approval.gate",
+    "final_answer": "final_answer.compose",
+}
 
 
 class TraceSpan(Protocol):
@@ -37,13 +46,6 @@ class AgentTracer(Protocol):
         """Create one trace span around a unit of workflow work."""
 
 
-class ExportSpan(TraceSpan, Protocol):
-    """Additional OpenTelemetry span capability used for errors."""
-
-    def record_exception(self, error: Exception) -> None:
-        """Record an exception observed during instrumented execution."""
-
-
 class ExportTracer(Protocol):
     """OpenTelemetry tracer behavior consumed by its local adapter."""
 
@@ -51,7 +53,7 @@ class ExportTracer(Protocol):
         self,
         name: str,
         attributes: Mapping[str, TraceValue] | None = None,
-    ) -> AbstractContextManager[ExportSpan]:
+    ) -> AbstractContextManager[TraceSpan]:
         """Begin an OpenTelemetry span context."""
 
 
@@ -96,20 +98,28 @@ class OpenTelemetryTracer:
             try:
                 yield active_span
             except Exception as error:
-                active_span.record_exception(error)
                 active_span.set_attribute("error.type", type(error).__name__)
                 raise
 
 
 def _configured_tracer(settings: Settings) -> AgentTracer:
-    if not settings.enable_tracing:
+    backend = settings.effective_tracing_backend
+    if backend == "none":
         return NoOpTracer()
     try:
-        return _build_otlp_tracer(settings)
+        if backend == "phoenix":
+            return _build_otlp_tracer(settings)
+        return _build_langsmith_tracer(settings)
     except Exception as error:
+        detail = (
+            str(error)
+            if type(error).__name__ == "LangSmithConfigurationError"
+            else type(error).__name__
+        )
         logger.warning(
-            "Tracing could not be configured; continuing without trace export: %s",
-            error,
+            "%s tracing could not be configured; continuing without trace export: %s",
+            backend.capitalize(),
+            detail,
         )
         return NoOpTracer()
 
@@ -130,38 +140,42 @@ def _build_otlp_tracer(settings: Settings) -> AgentTracer:
     return OpenTelemetryTracer(provider.get_tracer("app.agent"))
 
 
-@lru_cache(maxsize=8)
-def _cached_tracer(
-    enabled: bool, collector_endpoint: str, app_name: str
-) -> AgentTracer:
-    return _configured_tracer(
-        Settings(
-            ENABLE_TRACING=enabled,
-            PHOENIX_COLLECTOR_ENDPOINT=collector_endpoint,
-            app_name=app_name,
-        )
-    )
+def _build_langsmith_tracer(settings: Settings) -> AgentTracer:
+    """Configure managed LangSmith tracing only when selected."""
+
+    from app.observability.langsmith import build_langsmith_tracer
+
+    return build_langsmith_tracer(settings.langsmith_project)
 
 
 def get_agent_tracer(settings: Settings | None = None) -> AgentTracer:
-    """Return an optional configured tracer without contacting Phoenix."""
+    """Return the selected optional tracer without exporting application payloads."""
 
     configured_settings = settings or get_settings()
-    return _cached_tracer(
-        configured_settings.enable_tracing,
-        configured_settings.phoenix_collector_endpoint,
-        configured_settings.app_name,
-    )
+    return _configured_tracer(configured_settings)
 
 
 def traced_node(name: str, node: Node, tracer: AgentTracer) -> Node:
     """Decorate one LangGraph node with non-sensitive outcome attributes."""
 
     def invoke(state: AgentState) -> NodeResult:
-        attributes: dict[str, TraceValue] = {"agent.node": name}
-        if name == "mcp" and state["request"].requested_tool is not None:
-            attributes["tool.name"] = state["request"].requested_tool.tool_name
-        with tracer.span(f"agent.{name}", attributes) as span:
+        attributes: dict[str, TraceValue] = {
+            "workflow_step": name,
+            "data_scope": "synthetic_demo",
+        }
+        if name == "rag":
+            attributes["retrieval_mode"] = state["request"].mode
+            attributes["top_k"] = state["request"].top_k
+        if (
+            name in {"mcp", "tool_guardrails"}
+            and state["request"].requested_tool is not None
+        ):
+            attributes["tool_name"] = state["request"].requested_tool.tool_name
+        if name == "final_answer" and state["route"] is not None:
+            attributes["route_taken"] = state["route"]
+            attributes["number_of_sources"] = len(state["sources"])
+            attributes["approval_status"] = state["approval_status"]
+        with tracer.span(NODE_SPAN_NAMES[name], attributes) as span:
             result = node(state)
             _annotate_node_result(name, result, span)
             return result
@@ -171,20 +185,25 @@ def traced_node(name: str, node: Node, tracer: AgentTracer) -> Node:
 
 def _annotate_node_result(name: str, result: NodeResult, span: TraceSpan) -> None:
     if name == "router" and result.get("route") is not None:
-        span.set_attribute("agent.route", str(result["route"]))
+        span.set_attribute("route_taken", str(result["route"]))
     if name == "rag":
         chunks = result.get("retrieved_chunks")
-        span.set_attribute("retrieval.result_count", len(chunks) if chunks else 0)
+        sources = result.get("sources")
+        span.set_attribute("retrieval_result_count", len(chunks) if chunks else 0)
+        span.set_attribute("number_of_sources", len(sources) if sources else 0)
     if name == "mcp":
         calls = result.get("tool_calls")
-        span.set_attribute("tool.call_count", len(calls) if calls else 0)
+        sources = result.get("sources")
+        span.set_attribute("tool_call_count", len(calls) if calls else 0)
+        span.set_attribute("number_of_sources", len(sources) if sources else 0)
     if name == "human_approval":
-        span.set_attribute("approval.status", "pending_human_approval")
-        span.set_attribute("approval.required", True)
+        span.set_attribute("approval_status", "pending_human_approval")
+        span.set_attribute("approval_required", True)
     if name == "final_answer":
-        span.set_attribute("answer.generated", result.get("answer_text") is not None)
+        span.set_attribute("answer_generated", result.get("answer_text") is not None)
         synthesis = result.get("answer_synthesis")
         if isinstance(synthesis, AnswerSynthesisStatus):
-            span.set_attribute("answer.synthesis_mode", synthesis.mode)
+            span.set_attribute("answer_synthesis_mode", synthesis.mode)
+            span.set_attribute("llm_provider", synthesis.provider)
             if synthesis.model:
-                span.set_attribute("llm.model", synthesis.model)
+                span.set_attribute("llm_model", synthesis.model)

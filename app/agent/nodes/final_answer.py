@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 from app.agent.state import AgentState
 from app.llm.provider import AnswerSynthesizer
+from app.observability.phoenix import AgentTracer, NoOpTracer
 
 
 def deterministic_answer(state: AgentState) -> str:
@@ -67,25 +68,42 @@ def synthesis_prompt(state: AgentState, fallback_answer: str) -> str:
 
 def create_final_answer_node(
     synthesizer: AnswerSynthesizer | None = None,
+    tracer: AgentTracer | None = None,
 ) -> Callable[[AgentState], dict[str, object]]:
     """Create a final-answer node with optional synthesis injection for testing."""
 
     configured_synthesizer = synthesizer or AnswerSynthesizer()
+    configured_tracer = tracer or NoOpTracer()
 
     def final_answer_node(state: AgentState) -> dict[str, object]:
         fallback_answer = deterministic_answer(state)
 
         # Keep policy refusal text local and deterministic.
-        if state["route"] == "blocked_by_guardrail":
-            result = AnswerSynthesizer().synthesize(
-                prompt="",
+        active_synthesizer = (
+            AnswerSynthesizer()
+            if state["route"] == "blocked_by_guardrail"
+            else configured_synthesizer
+        )
+        attributes: dict[str, str] = {
+            "data_scope": "synthetic_demo",
+            "route_taken": state["route"] or "unknown",
+            "llm_provider": active_synthesizer.provider_name,
+        }
+        if active_synthesizer.model_name:
+            attributes["llm_model"] = active_synthesizer.model_name
+        with configured_tracer.span("llm.answer_synthesis", attributes) as span:
+            result = active_synthesizer.synthesize(
+                prompt=(
+                    ""
+                    if state["route"] == "blocked_by_guardrail"
+                    else synthesis_prompt(state, fallback_answer)
+                ),
                 deterministic_answer=fallback_answer,
             )
-        else:
-            result = configured_synthesizer.synthesize(
-                prompt=synthesis_prompt(state, fallback_answer),
-                deterministic_answer=fallback_answer,
-            )
+            span.set_attribute("answer_synthesis_mode", result.status.mode)
+            span.set_attribute("llm_provider", result.status.provider)
+            if result.status.model:
+                span.set_attribute("llm_model", result.status.model)
         return {
             "answer_text": result.answer_text,
             "answer_synthesis": result.status,

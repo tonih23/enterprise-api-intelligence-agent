@@ -46,10 +46,11 @@ mock approval outcomes only for the application process lifetime. A Postgres
 adapter can implement the same protocol when durable operational persistence
 and migrations are added.
 
-The graph accepts an optional tracer supplied by `app.observability.phoenix`.
-With `ENABLE_TRACING=true`, each graph run and executed node emits local
-Phoenix-compatible spans. With tracing disabled or unavailable, the same
-workflow executes through a no-op tracer.
+The graph accepts an optional tracer selected by `app.observability.phoenix`.
+`API_AGENT_TRACING_BACKEND` can select local Phoenix or managed LangSmith
+metadata-only spans; legacy `ENABLE_TRACING=true` selects Phoenix when no
+backend is set. With tracing disabled or unavailable, the same workflow
+executes through a no-op tracer.
 
 Guardrail policies and current limitations are documented in
 `docs/guardrails.md`.

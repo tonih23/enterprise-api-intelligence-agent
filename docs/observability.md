@@ -2,14 +2,23 @@
 
 ## Purpose
 
-The project uses optional Phoenix-compatible OpenTelemetry tracing to make
-agent control flow inspectable during local development. The traced workload
-uses fictional API documentation and mock governed actions only.
+The project supports optional tracing to make agent control flow inspectable.
+Phoenix provides a local/open-source demo view; LangSmith provides an optional
+managed tracing view that is natural for LangGraph applications. The traced
+workload uses fictional API documentation and mock governed actions only.
 
 Tracing is disabled by default. When disabled, all instrumentation uses a
-no-op tracer and the API behaves normally without a Phoenix service.
+no-op tracer and the API behaves normally without either backend.
 
 ## Local Configuration
+
+Set one backend explicitly:
+
+```dotenv
+API_AGENT_TRACING_BACKEND="none" # none, phoenix, or langsmith
+```
+
+### Phoenix
 
 Start the local Phoenix collector and its Postgres dependency:
 
@@ -17,10 +26,10 @@ Start the local Phoenix collector and its Postgres dependency:
 docker compose up -d postgres phoenix
 ```
 
-Enable tracing when running the API locally:
+Enable local Phoenix tracing when running the API locally:
 
 ```dotenv
-ENABLE_TRACING="true"
+API_AGENT_TRACING_BACKEND="phoenix"
 PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006/v1/traces"
 ```
 
@@ -28,12 +37,26 @@ PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006/v1/traces"
 uv run uvicorn app.main:app --reload
 ```
 
-Alternatively, run the full Compose stack with `ENABLE_TRACING="true"` in
-`.env`; the API container is configured to export to the local `phoenix`
-service.
+Existing local configuration may continue to use `ENABLE_TRACING="true"`
+without `API_AGENT_TRACING_BACKEND`; this legacy form selects Phoenix.
 
 Open the Phoenix UI at
 [http://127.0.0.1:6006](http://127.0.0.1:6006).
+
+### LangSmith
+
+LangSmith is an opt-in managed alternative, especially useful when explaining
+LangGraph runs. Set credentials only in an uncommitted local `.env`:
+
+```dotenv
+API_AGENT_TRACING_BACKEND="langsmith"
+LANGSMITH_PROJECT="enterprise-api-intelligence-agent"
+# LANGSMITH_API_KEY=""  # Set only in your local uncommitted .env.
+```
+
+The LangSmith free tier is suitable for a small portfolio demo. An enterprise
+deployment would require approved account, retention, and access-control
+decisions.
 
 ## Span Model
 
@@ -42,28 +65,43 @@ An agent chat run can produce:
 | Span | Purpose |
 | --- | --- |
 | `agent.run` | Parent span for one LangGraph execution |
-| `agent.request_guardrails` | Restricted-request and approval-required action screening |
-| `agent.router` | Deterministic route decision |
-| `agent.rag` | Hybrid document retrieval call and result count |
-| `agent.tool_guardrails` | Policy enforcement immediately before local tool execution |
-| `agent.mcp` | Local MCP tool dispatch, including an approved mock call |
-| `agent.human_approval` | Pending approval gate for a sensitive action |
-| `agent.human_approval.decision` | Subsequent simulated approval endpoint decision |
-| `agent.final_guardrails` | Source and weak-evidence review before answer formatting |
-| `agent.final_answer` | Deterministic response formatting |
+| `guardrails.check` | Request, pre-tool, or final evidence checks, identified by `workflow_step` |
+| `router.decide` | Deterministic route decision |
+| `rag.retrieve` | Document retrieval and returned source count |
+| `mcp.tool_call` | Local MCP tool dispatch, including an approved mock call |
+| `approval.gate` | Pending gate or subsequent simulated approval decision |
+| `llm.answer_synthesis` | Deterministic or optional Gemini final-wording boundary |
+| `final_answer.compose` | Structured response assembly after guardrails |
 
-The instrumentation records operational metadata such as selected route,
-source count, tool name, and approval status. It intentionally does not attach
-user messages, retrieved passages, OpenAPI content, or tool arguments to
-exported spans.
+Useful attributes include `route_taken`, `retrieval_mode`, `top_k`,
+`number_of_sources`, `tool_name`, `approval_status`, `llm_provider`,
+`llm_model`, and `answer_synthesis_mode`. Spans are marked with
+`data_scope="synthetic_demo"`. Instrumentation intentionally does not attach
+user messages, prompts, retrieved passages, OpenAPI content, tool arguments,
+API keys, or credentials to exported spans.
+
+## Demo Walkthrough
+
+In Phoenix or LangSmith, open an `agent.run` trace after each sample question
+and look for:
+
+- A documentation question: `router.decide` followed by `rag.retrieve`, then
+  `llm.answer_synthesis` and `final_answer.compose`.
+- A local validation command: `mcp.tool_call` with its safe `tool_name`.
+- A mock change request: `approval.gate` with
+  `approval_status="pending_human_approval"` before any approved mock tool
+  call.
+- Optional Gemini mode: `llm_provider="gemini"` and the configured
+  `llm_model`; deterministic fallback remains visible in
+  `answer_synthesis_mode`.
 
 ## Failure Behavior
 
-Phoenix is an observability dependency, not a request-processing dependency.
-When tracing is off, no exporter is configured. If enabled tracing cannot be
-configured, the application logs a warning and continues with a no-op tracer.
-If a running collector becomes unavailable, OpenTelemetry export failures do
-not change agent answers or approval controls.
+Observability is not a request-processing dependency. When tracing is off, no
+exporter is configured. If Phoenix is unavailable, or LangSmith is selected
+without `LANGSMITH_API_KEY` or cannot be initialized, the application logs a
+warning and continues with no-op tracing. Trace export failures do not change
+agent answers or approval controls.
 
 ## AgentOps And Governance
 

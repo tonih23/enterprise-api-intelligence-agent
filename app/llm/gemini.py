@@ -26,6 +26,8 @@ class _GeminiCredentials(BaseSettings):
 class GeminiProvider:
     """Generate final-answer text using the official Google GenAI SDK."""
 
+    provider_name = "gemini"
+
     def __init__(self, *, model_name: str, api_key: str) -> None:
         self.model_name = model_name
         self._api_key = api_key

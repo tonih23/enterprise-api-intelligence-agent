@@ -330,26 +330,33 @@ def approve(
 ) -> ApprovalResponse:
     """Simulate approval, then run only the local mock action."""
 
-    with tracer.span("agent.human_approval.decision") as span:
+    with tracer.span(
+        "approval.gate",
+        {"data_scope": "synthetic_demo", "workflow_step": "approval_resume"},
+    ) as span:
         approval = repository.get_approval(approval_id)
         if approval is None:
-            span.set_attribute("approval.status", "not_found")
+            span.set_attribute("approval_status", "not_found")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Approval request not found.",
             )
         if approval.status == "approved":
-            span.set_attribute("approval.status", "already_approved")
+            span.set_attribute("approval_status", "already_approved")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Approval request has already been approved.",
             )
 
-        span.set_attribute("approval.status", "approved")
-        span.set_attribute("approval.required", True)
+        span.set_attribute("approval_status", "approved")
+        span.set_attribute("approval_required", True)
         with tracer.span(
-            "agent.mcp",
-            {"tool.name": "create_change_request_mock", "tool.after_approval": True},
+            "mcp.tool_call",
+            {
+                "data_scope": "synthetic_demo",
+                "tool_name": "create_change_request_mock",
+                "approval_status": "approved",
+            },
         ):
             proposed = tools.create_change_request_mock(
                 approval.request.title,

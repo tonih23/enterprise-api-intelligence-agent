@@ -16,7 +16,7 @@ evaluation.
 | Embeddings | Implemented: `local_hashing` offline fallback and configurable `BAAI/bge-large-en-v1.5` semantic backend |
 | MCP-style tools | Implemented: catalogue search, API details, local spec validation, mock change request |
 | LangGraph workflow | Implemented: deterministic routing, retrieval, tools, approval, clarification, guardrails |
-| Observability | Implemented: optional local Phoenix/OpenTelemetry tracing |
+| Observability | Implemented: optional local Phoenix or managed LangSmith tracing |
 | Evaluation | Implemented: 20-case offline synthetic baseline with local JSON results |
 | Persistence | Partial: in-memory session/approval repository; Postgres application adapter is future work |
 | Production security | Not implemented: authentication, authorization, tenant isolation, and governed external integrations |

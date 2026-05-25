@@ -5,12 +5,14 @@ from typing import Literal
 from pydantic import BaseModel
 
 AnswerSynthesisMode = Literal["deterministic", "gemini"]
+LlmProviderName = Literal["none", "gemini"]
 
 
 class AnswerSynthesisStatus(BaseModel):
     """How the final answer text was produced."""
 
     mode: AnswerSynthesisMode = "deterministic"
+    provider: LlmProviderName = "none"
     model: str | None = None
     warning: str | None = None
 

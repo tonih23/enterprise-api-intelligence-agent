@@ -13,9 +13,17 @@ AgentRoute = Literal[
     "call_mcp_tool",
     "require_human_approval",
     "ask_clarification",
+    "blocked_by_guardrail",
 ]
 ApprovalStatus = Literal["not_required", "pending_human_approval"]
 ToolExecutionStatus = Literal["completed", "blocked_pending_approval", "failed"]
+GuardrailStatus = Literal[
+    "unchecked",
+    "passed",
+    "blocked",
+    "approval_required",
+    "clarification_required",
+]
 
 
 class SearchCatalogArguments(BaseModel):
@@ -130,6 +138,8 @@ class AgentState(TypedDict):
     sources: list[SourceReference]
     tool_calls: list[ToolCallRecord]
     approval_status: ApprovalStatus
+    guardrail_status: GuardrailStatus
+    guardrail_reason: str | None
     draft_answer: str | None
     answer_text: str | None
 
@@ -145,6 +155,8 @@ def initial_state(request: AgentRequest) -> AgentState:
         sources=[],
         tool_calls=[],
         approval_status="not_required",
+        guardrail_status="unchecked",
+        guardrail_reason=None,
         draft_answer=None,
         answer_text=None,
     )

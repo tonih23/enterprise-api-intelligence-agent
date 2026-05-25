@@ -11,6 +11,7 @@ from opensearchpy.exceptions import OpenSearchException
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.graph import AgentWorkflow, create_agent_workflow
+from app.agent.guardrails import sensitive_tool_is_allowed
 from app.agent.repository import (
     AgentRepository,
     ApprovalRecord,
@@ -304,6 +305,13 @@ def approve(
 
         span.set_attribute("approval.status", "approved")
         span.set_attribute("approval.required", True)
+        if not sensitive_tool_is_allowed(
+            "create_change_request_mock", human_approval_present=True
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Human approval is required for this action.",
+            )
         with tracer.span(
             "agent.mcp",
             {"tool.name": "create_change_request_mock", "tool.after_approval": True},

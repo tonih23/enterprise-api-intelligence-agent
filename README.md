@@ -26,6 +26,8 @@ use internal company data or call real APIs.
   approval decisions, and final response formatting.
 - Deterministic synthetic evaluation suite for routes, evidence, tools,
   approval gating, and basic groundedness.
+- Guardrails for restricted disclosure, real-system requests, human approval,
+  and source-backed factual answers.
 - Pytest and Ruff configuration managed through `pyproject.toml`.
 
 The proposed end-to-end architecture and delivery sequence are documented in
@@ -237,6 +239,12 @@ blocked in a pending human-approval state; and an ambiguous request asks for
 clarification. The final response reports answer text, the route taken,
 sources, tool calls, and approval status.
 
+Guardrails run before routing or tool execution where policy applies and
+before final answer generation. Requests to disclose credentials, tokens,
+secrets, private data, or access real company systems are refused. Factual
+documentation answers require synthetic sources; absent or weak retrieval
+instead asks the user for a more specific documented API or topic.
+
 No external LLM or API key is required. The current router is selected with
 `API_AGENT_ROUTER_BACKEND="deterministic"` and is isolated behind a node
 interface so a configured LLM router can be added later. Module details are in
@@ -303,8 +311,9 @@ PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006/v1/traces"
 Open Phoenix at
 [http://127.0.0.1:6006](http://127.0.0.1:6006), then send requests to
 `POST /agent/chat`. For a documentation question, expect spans for
-`agent.run`, `agent.router`, `agent.rag`, and `agent.final_answer`. Local MCP
-requests add `agent.mcp`; approval-gated requests add
+`agent.run`, `agent.request_guardrails`, `agent.router`, `agent.rag`,
+`agent.final_guardrails`, and `agent.final_answer`. Local MCP requests add
+`agent.tool_guardrails` and `agent.mcp`; approval-gated requests add
 `agent.human_approval`, and approval continuation adds
 `agent.human_approval.decision`.
 
@@ -334,6 +343,24 @@ When `ENABLE_TRACING=true`, evaluated graph runs use the same optional local
 Phoenix trace path as agent API requests. Metric definitions and the future
 Postgres persistence design are documented in
 [docs/evaluation.md](docs/evaluation.md).
+
+## Guardrails
+
+The agent is intentionally limited to fictional project data and local mock
+actions:
+
+- It does not reveal secrets, credentials, tokens, or internal private data.
+- It does not claim or attempt access to real enterprise systems.
+- It sends destructive or change-management actions to human approval before
+  any mock action can execute.
+- It returns factual documentation answers only with synthetic sources, and
+  asks for clarification when evidence is missing or weak.
+- It does not confirm an API name through local tooling unless that API exists
+  in the synthetic specifications.
+
+These are deterministic baseline controls rather than a full production
+security layer. Details and limitations are in
+[docs/guardrails.md](docs/guardrails.md).
 
 ## Configuration
 

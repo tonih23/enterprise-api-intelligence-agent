@@ -10,6 +10,8 @@ Agent.
   hybrid retrieval over previously ingested synthetic documentation.
 - `agent/api.py` exposes chat, local session history, and simulated approval
   endpoints backed by the deterministic LangGraph workflow.
+- `agent/guardrails.py` enforces synthetic-only disclosure, tool approval, and
+  sourced-answer policies at graph boundaries.
 - `observability/phoenix.py` optionally exports workflow spans to local
   Phoenix over OTLP/HTTP without making tracing a request dependency.
 - `evals/run_evals.py` executes deterministic regression cases over local

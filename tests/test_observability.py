@@ -98,8 +98,10 @@ def test_injected_tracer_records_agent_router_retrieval_and_answer_spans() -> No
     assert response.route_taken == "answer_with_rag"
     assert set(spans) == {
         "agent.run",
+        "agent.request_guardrails",
         "agent.router",
         "agent.rag",
+        "agent.final_guardrails",
         "agent.final_answer",
     }
     assert spans["agent.router"].attributes["agent.route"] == "answer_with_rag"

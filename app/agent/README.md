@@ -8,15 +8,18 @@ system.
 
 `AgentWorkflow` accepts a typed `AgentRequest`, then executes:
 
-1. `router`: applies deterministic rules and selects retrieval, local MCP
+1. `request_guardrails`: blocks sensitive disclosures or real-system access
+   requests and routes change actions into approval.
+2. `router`: applies deterministic rules and selects retrieval, local MCP
    tooling, approval, or clarification.
-2. `rag`: executes existing hybrid retrieval for documentation questions.
-3. `mcp`: invokes approved local MCP tool logic for synthetic lookups and
-   local validation.
-4. `human_approval`: records a pending request and prevents execution of
+3. `rag`: executes existing hybrid retrieval for documentation questions.
+4. `tool_guardrails` and `mcp`: enforce tool policy, then invoke approved local
+   MCP logic for synthetic lookups and local validation.
+5. `human_approval`: records a pending request and prevents execution of
    `create_change_request_mock`.
-5. `final_answer`: produces deterministic text together with sources, tool
-   calls, route, and approval status.
+6. `final_guardrails` and `final_answer`: require sufficient sourced evidence
+   for factual answers and produce deterministic output with route, sources,
+   tool calls, and approval status.
 
 `create_agent_workflow` reads
 `API_AGENT_ROUTER_BACKEND="deterministic"` to select the current routing
@@ -42,3 +45,6 @@ The graph accepts an optional tracer supplied by `app.observability.phoenix`.
 With `ENABLE_TRACING=true`, each graph run and executed node emits local
 Phoenix-compatible spans. With tracing disabled or unavailable, the same
 workflow executes through a no-op tracer.
+
+Guardrail policies and current limitations are documented in
+`docs/guardrails.md`.

@@ -42,11 +42,14 @@ An agent chat run can produce:
 | Span | Purpose |
 | --- | --- |
 | `agent.run` | Parent span for one LangGraph execution |
+| `agent.request_guardrails` | Restricted-request and approval-required action screening |
 | `agent.router` | Deterministic route decision |
 | `agent.rag` | Hybrid document retrieval call and result count |
+| `agent.tool_guardrails` | Policy enforcement immediately before local tool execution |
 | `agent.mcp` | Local MCP tool dispatch, including an approved mock call |
 | `agent.human_approval` | Pending approval gate for a sensitive action |
 | `agent.human_approval.decision` | Subsequent simulated approval endpoint decision |
+| `agent.final_guardrails` | Source and weak-evidence review before answer formatting |
 | `agent.final_answer` | Deterministic response formatting |
 
 The instrumentation records operational metadata such as selected route,

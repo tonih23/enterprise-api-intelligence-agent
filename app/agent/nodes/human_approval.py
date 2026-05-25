@@ -27,7 +27,8 @@ def human_approval_node(state: AgentState) -> dict[str, object]:
         "tool_calls": [pending_call],
         "approval_status": "pending_human_approval",
         "draft_answer": (
-            "Human approval is required before the mock change-request tool can "
-            "be invoked. No action has been executed."
+            "In this synthetic demo, human approval is required before the mock "
+            "change-request tool can be invoked. No action has been executed in "
+            "any real company system."
         ),
     }

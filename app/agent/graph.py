@@ -4,6 +4,13 @@ from typing import Protocol
 
 from langgraph.graph import END, START, StateGraph
 
+from app.agent.guardrails import (
+    final_guardrail_node,
+    request_guardrail_node,
+    request_guardrail_path,
+    tool_guardrail_node,
+    tool_guardrail_path,
+)
 from app.agent.nodes.final_answer import final_answer_node
 from app.agent.nodes.human_approval import human_approval_node
 from app.agent.nodes.mcp_node import LocalMcpTools, create_mcp_node
@@ -46,6 +53,10 @@ def build_agent_graph(
     configured_tracer = tracer or NoOpTracer()
     graph = StateGraph(AgentState)
     graph.add_node(
+        "request_guardrails",
+        traced_node("request_guardrails", request_guardrail_node, configured_tracer),
+    )
+    graph.add_node(
         "router",
         traced_node("router", create_router(router_backend), configured_tracer),
     )
@@ -54,28 +65,55 @@ def build_agent_graph(
     )
     graph.add_node("mcp", traced_node("mcp", create_mcp_node(tools), configured_tracer))
     graph.add_node(
+        "tool_guardrails",
+        traced_node("tool_guardrails", tool_guardrail_node, configured_tracer),
+    )
+    graph.add_node(
         "human_approval",
         traced_node("human_approval", human_approval_node, configured_tracer),
+    )
+    graph.add_node(
+        "final_guardrails",
+        traced_node("final_guardrails", final_guardrail_node, configured_tracer),
     )
     graph.add_node(
         "final_answer",
         traced_node("final_answer", final_answer_node, configured_tracer),
     )
 
-    graph.add_edge(START, "router")
+    graph.add_edge(START, "request_guardrails")
+    graph.add_conditional_edges(
+        "request_guardrails",
+        request_guardrail_path,
+        {
+            "route": "router",
+            "approval": "human_approval",
+            "blocked": "final_guardrails",
+        },
+    )
     graph.add_conditional_edges(
         "router",
         select_route,
         {
             "answer_with_rag": "rag",
-            "call_mcp_tool": "mcp",
+            "call_mcp_tool": "tool_guardrails",
             "require_human_approval": "human_approval",
-            "ask_clarification": "final_answer",
+            "ask_clarification": "final_guardrails",
         },
     )
-    graph.add_edge("rag", "final_answer")
-    graph.add_edge("mcp", "final_answer")
-    graph.add_edge("human_approval", "final_answer")
+    graph.add_conditional_edges(
+        "tool_guardrails",
+        tool_guardrail_path,
+        {
+            "tool": "mcp",
+            "approval": "human_approval",
+            "blocked": "final_guardrails",
+        },
+    )
+    graph.add_edge("rag", "final_guardrails")
+    graph.add_edge("mcp", "final_guardrails")
+    graph.add_edge("human_approval", "final_guardrails")
+    graph.add_edge("final_guardrails", "final_answer")
     graph.add_edge("final_answer", END)
     return graph.compile()
 

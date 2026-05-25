@@ -27,7 +27,9 @@ def final_answer_node(state: AgentState) -> dict[str, object]:
     )
     return {
         "answer_text": (
-            "Retrieved relevant evidence from the synthetic documentation corpus:\n"
+            "Based only on the synthetic documentation corpus for this demo, "
+            "retrieved "
+            "relevant evidence:\n"
             f"{evidence}"
         )
     }

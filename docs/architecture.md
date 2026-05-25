@@ -41,6 +41,7 @@ flowchart LR
 | OpenSearch | Search indexes for documents, chunks, metadata, embeddings, and keyword fields | Search store, not transactional system of record |
 | MCP server | Exposes controlled tools such as API lookup and proposed governed actions | Tool contracts are independent of model provider |
 | Approval service | Suspends sensitive actions until an authorized human approves or rejects | No sensitive execution before approval |
+| Guardrail policy | Blocks restricted requests, enforces tool approval, and checks evidence before answers | Synthetic-only and sourced-answer boundary |
 | Agent repository | Conversation turns and pending mock approvals; currently in-memory for local use | Protocol boundary for a later Postgres adapter |
 | Postgres | Planned durable conversation metadata, tool/audit events, approval status, and evaluation results | Durable operational record after adapter implementation |
 | Phoenix | Trace visualization, retrieval and response evaluation, experiment comparison | Observability platform, not source of business records |
@@ -49,36 +50,47 @@ flowchart LR
 ## Primary Request Flow
 
 1. A client submits a question to FastAPI with correlation and conversation context.
-2. LangGraph applies deterministic routing and decides whether retrieval, a
-   local MCP tool, an approval gate, or clarification is needed.
-3. For documentation questions, the retrieval service obtains candidate passages from OpenSearch using lexical and vector search, merges and ranks results, and returns citations.
-4. The initial workflow formats a deterministic evidence-based answer from
+2. LangGraph first applies deterministic request guardrails, rejecting
+   restricted disclosure and real-system access or sending change actions to
+   approval.
+3. The router decides whether retrieval, a local MCP tool, an approval gate,
+   or clarification is needed.
+4. For documentation questions, the retrieval service obtains candidate passages from OpenSearch using lexical and vector search, merges and ranks results, and returns citations.
+5. Final guardrails require adequate sourced evidence before the workflow
+   formats a deterministic evidence-based answer from
    retrieved synthetic sources; a configured LLM answer generator can be
    introduced later.
-5. For MCP tool requests, the workflow invokes only permitted tools and records inputs and results.
-6. If a tool represents a sensitive action, LangGraph creates a pending
+6. For MCP tool requests, tool guardrails enforce policy before the workflow
+   invokes permitted tools and records inputs and results.
+7. If a tool represents a sensitive action, LangGraph creates a pending
    approval record rather than invoking the tool.
-7. `POST /agent/approve/{approval_id}` simulates approval and invokes only the
+8. `POST /agent/approve/{approval_id}` simulates approval and invokes only the
    local mock action, returning an object that explicitly creates no external
    record.
-8. The current HTTP layer stores session and approval metadata in an in-memory
+9. The current HTTP layer stores session and approval metadata in an in-memory
    repository implementation; a Postgres adapter remains a planned
    operational integration.
-9. When `ENABLE_TRACING=true`, optional OpenTelemetry spans are exported to
+10. When `ENABLE_TRACING=true`, optional OpenTelemetry spans are exported to
    local Phoenix for the agent run and executed graph nodes.
 
 ## Implemented Graph Flow
 
 ```mermaid
 flowchart TD
-    Start["AgentRequest"] --> Router["router<br/>deterministic rules"]
+    Start["AgentRequest"] --> RequestGuard["request_guardrails<br/>synthetic-only and action policy"]
+    RequestGuard -->|permitted| Router["router<br/>deterministic rules"]
+    RequestGuard -->|action requiring approval| Approval["human_approval<br/>record pending action"]
+    RequestGuard -->|blocked| FinalGuard["final_guardrails<br/>evidence and output policy"]
     Router -->|answer_with_rag| RAG["rag<br/>hybrid retrieval"]
-    Router -->|call_mcp_tool| MCP["mcp<br/>local synthetic tools"]
-    Router -->|require_human_approval| Approval["human_approval<br/>record pending action"]
-    Router -->|ask_clarification| Final["final_answer"]
-    RAG --> Final
-    MCP --> Final
-    Approval --> Final
+    Router -->|call_mcp_tool| ToolGuard["tool_guardrails<br/>approval enforcement"]
+    ToolGuard -->|permitted| MCP["mcp<br/>local synthetic tools"]
+    ToolGuard -->|approval required| Approval
+    Router -->|require_human_approval| Approval
+    Router -->|ask_clarification| FinalGuard
+    RAG --> FinalGuard
+    MCP --> FinalGuard
+    Approval --> FinalGuard
+    FinalGuard --> Final["final_answer"]
     Final --> Output["AgentResponse<br/>answer, route, sources,<br/>tool calls, approval status"]
 ```
 
@@ -130,6 +142,7 @@ tool-selection correctness, and approval-policy compliance.
 | Knowledge grounding | Hybrid retrieval over versioned synthetic API artifacts with citations |
 | Interoperable capabilities | MCP tools with explicit contracts and risk metadata |
 | Governance and separation of duties | Human approval gate for sensitive tools |
+| Data and answer policy | Guardrails blocking restricted access and unsupported factual responses |
 | Auditability | Repository protocol for conversation and approval events, designed for Postgres durability |
 | Operational visibility | Phoenix traces and evaluation datasets |
 | Change management | Versioned prompts, schemas, corpora, and evaluation runs |
